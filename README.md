@@ -12,8 +12,8 @@ import pydh3 as dh3
 
 s = dh3.State() # Constructs a new initial state
 assert(s.winner() == None)
-assert(str(s) == """\
-** It is Player 1's turn
+assert(str(s) ==
+r"""** It is Player 1's turn
 ** Player 1's board:
                 _____
                /     \
@@ -53,13 +53,14 @@ s.next(0)               # Player 2 plays in cell 0 (which is occupied)...
 assert(s.player() == 1) # ... so the turn does not pass to the opponent
 s.next(2)               # Player 2 plays in cell 2
 assert(s.winner() == None)
+assert(s.player() == 0)
 s.next(1)               # Player 1 plays in cell 1
-assert(s.player() == 2)
+assert(s.player() == 1)
 # Player 2 has already probed cells 0 and 2, so placing there
 # again is an illegal move
-assert(s.action_mask() == (False, True, False, True, True, True, True, True, True))
-assert(str(s) == """\
-** It is Player 2's turn
+assert(s.action_mask() == [False, True, False, True, True, True, True, True, True])
+assert(str(s) ==
+r"""** It is Player 2's turn
 ** Player 1's board:
                 _____
                /     \
