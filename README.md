@@ -3,6 +3,20 @@
 High-performance implementation of DarkHex3 / Abrupt DarkHex3, with support for
 exploitability and best response computation.
 
+## Building
+
+To build, you can simply run
+```
+pip install -e .
+```
+
+This should create an `.so` file whose name starts with `pydh3`. To make sure it all worked well, you can do
+```
+>$ python
+>>> import pydh3
+```
+and make sure no errors are printed.
+
 ## Python interface
 
 ### Game state
