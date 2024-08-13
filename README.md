@@ -111,6 +111,12 @@ r"""** It is Player 2's turn
 
 You can use `next_abrupt` instead of `next` to use the abrupt DH rule.
 
+### Player goals
+
+Player 0 wants to connect down-right (cells {0,1,2} with {2,5,8}).
+
+Player 1 wants to connect up-right (cells {0,1,2} with {6,7,8}).
+
 ### Strategy representation
 
 In order to compute exploitability and expected values, the library expects the
@@ -121,8 +127,6 @@ The strategy tensor for player 1 must have shape `(dh3.NUM_INFOS_PL1, 9)`, and f
 must have shape `(dh3.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
 
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
-
-TODO: determine a good format to explain the correspondence between row and infoset---what is a convenient way to export the observations that define the infoset for you to query the net?
 
 ```
 import pydh3 as dh3
@@ -150,3 +154,5 @@ ret = t.ev_and_exploitability(x, y)   # This takes roughly 75s on my machine.
 # [1723044495.952|>INFO] [traverser.cpp:383] ... all done. (ev = 0.333684, expl = 0.666318, 1.166488)
 print(ret.ev, ret.expl)
 ```
+
+The correspondence between rows and information set can be recovered by using the function `traverser.infoset_desc(player, row_number)`. For example, `traverser.infoset_desc(0, 12345)` returns `'5*8*4.0.'`. This means that row `12345` of the strategy tensor of Player `0` corresponds to the strategy used by that player when its their turn assuming the observations they made was: they placed a piece on cell `5`, and it went through (`*`); then they played on cell `8` and it went through; then they played on cell `4`, but it was found occupied (`.`); then they played on `0` and it was occupied; and now it is their turn.
