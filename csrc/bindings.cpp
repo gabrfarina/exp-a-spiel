@@ -65,7 +65,7 @@ PYBIND11_MODULE(pydh3, m) {
       .def("__repr__", &DhState::debug_string);
 
   py::class_<EvExpl>(m, "EvExpl")
-      .def_readonly("ev", &EvExpl::ev)
+      .def_readonly("ev0", &EvExpl::ev0)
       .def_readonly("expl", &EvExpl::expl);
 
   py::class_<DhTraverser>(m, "Traverser")
@@ -89,8 +89,25 @@ PYBIND11_MODULE(pydh3, m) {
                 NUM_INFOS_PL2, strat1.shape(0), strat1.shape(1));
 
             return traverser.ev_and_exploitability(
-                {strat0.mutable_data(), strat1.mutable_data()});
+                {strat0.data(), strat1.data()});
           })
+      .def("infoset_desc",
+           [](const DhTraverser &traverser, const uint8_t p,
+              const uint32_t row) -> std::string {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %d)", p);
+             CHECK(row < traverser.treeplex[p].num_infosets(),
+                   "Invalid row (expected < %d; found %d)",
+                   traverser.treeplex[p].num_infosets(), row);
+             uint64_t key = traverser.treeplex[p].infoset_keys.at(row);
+             std::string out = "";
+             for (; key; key >>= 5) {
+               out += (key & 1) ? '*' : '.';
+               out += std::to_string(((key & 0b11110) >> 1) - 1);
+             }
+             reverse(out.begin(), out.end());
+             return out;
+           })
       .def("construct_uniform_strategies",
            [](const DhTraverser &traverser)
                -> std::array<py::array_t<Real, py::array::c_style>, 2> {

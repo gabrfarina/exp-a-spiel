@@ -40,7 +40,7 @@ struct Treeplex {
 };
 
 struct EvExpl {
-  Real ev;
+  Real ev0;
   std::array<Real, 2> expl;
 };
 

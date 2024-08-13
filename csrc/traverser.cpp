@@ -354,32 +354,32 @@ EvExpl DhTraverser::ev_and_exploitability(
   compute_gradients(strategies);
 
   INFO("computing expected value...");
-  Real ev = 0.0;
+  Real ev0 = 0.0;
   for (uint32_t i = 0; i < treeplex[0].num_infosets() * 9; ++i) {
-    ev += sf_strategies_[0][i] * gradients[0][i];
+    ev0 += sf_strategies_[0][i] * gradients[0][i];
   }
 
 #ifdef DEBUG
   {
     INFO("double checking expected value...");
 
-    Real ev2 = 0.0;
+    Real ev1 = 0.0;
     for (uint32_t i = 0; i < treeplex[1].num_infosets() * 9; ++i) {
-      ev2 += sf_strategies_[1][i] * gradients[1][i];
+      ev1 += sf_strategies_[1][i] * gradients[1][i];
     }
 
-    CHECK(std::abs(ev + ev2) < 1e-3, "Expected values differ: %.6f != %.6f", ev,
-          ev2);
+    CHECK(std::abs(ev0 + ev1) < 1e-3, "Expected values differ: %.6f != %.6f",
+          ev, ev1);
   }
 #endif
 
-  std::array<Real, 2> expl = {-ev, ev};
+  std::array<Real, 2> expl = {-ev0, ev0};
   INFO("computing exploitabilities...");
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
     expl[p] += treeplex[p].br_value(&gradients[p][0]);
   }
 
-  INFO("... all done. (ev = %.6f, expl = %.6f, %.6f)", ev, expl[0], expl[1]);
-  return {.ev = ev, .expl = expl};
+  INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, expl[0], expl[1]);
+  return {.ev0 = ev0, .expl = expl};
 }
