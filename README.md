@@ -151,8 +151,8 @@ ret = t.ev_and_exploitability(x, y)   # This takes roughly 75s on my machine.
 # [1723044495.907|>INFO] [traverser.cpp:348] ... all done.
 # [1723044495.907|>INFO] [traverser.cpp:356] computing expected value...
 # [1723044495.919|>INFO] [traverser.cpp:377] computing exploitabilities...
-# [1723044495.952|>INFO] [traverser.cpp:383] ... all done. (ev = 0.333684, expl = 0.666318, 1.166488)
-print(ret.ev, ret.expl)
+# [1723044495.952|>INFO] [traverser.cpp:383] ... all done. (ev0 = 0.333684, expl = 0.666318, 1.166488)
+print(ret.ev0, ret.expl)
 ```
 
 The correspondence between rows and information set can be recovered by using the function `traverser.infoset_desc(player, row_number)`. For example, `traverser.infoset_desc(0, 12345)` returns `'5*8*4.0.'`. This means that row `12345` of the strategy tensor of Player `0` corresponds to the strategy used by that player when its their turn assuming the observations they made was: they placed a piece on cell `5`, and it went through (`*`); then they played on cell `8` and it went through; then they played on cell `4`, but it was found occupied (`.`); then they played on `0` and it was occupied; and now it is their turn.
