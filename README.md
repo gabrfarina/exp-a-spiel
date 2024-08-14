@@ -5,24 +5,31 @@ exploitability and best response computation.
 
 ## Building
 
-To build, you can simply run
+This project is packaged with [pixi](https://prefix.dev/), which you can think of as a "local" conda (and in fact it pulls packages from the conda repository).
+
+To create the pixi environment, you can do
 ```
-pip install -e .
+> $ pixi install
+✔ The default environment has been installed.
 ```
 
-This should create an `.so` file whose name starts with `pydh3`. To make sure it all worked well, you can do
+To activate the environment, you can then do
 ```
->$ python
->>> import pydh3
+> $ pixi shell
 ```
-and make sure no errors are printed.
+
+To make sure everything works well you can do
+```
+> $ python
+>>> import dh3
+```
 
 ## Python interface
 
 ### Game state
 
 ```
-import pydh3 as dh3
+import dh3
 
 s = dh3.State() # Constructs a new initial state
 assert(s.winner() == None)
