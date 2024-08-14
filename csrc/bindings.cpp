@@ -4,20 +4,20 @@
 #include <sys/types.h>
 #include <valarray>
 
+#include "dh_state.h"
 #include "log.h"
-#include "state.h"
+#include "pttt_state.h"
 #include "traverser.h"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(pydh3, m) {
-  m.attr("NUM_INFOS_PL1") = py::int_(NUM_INFOS_PL1);
-  m.attr("NUM_INFOS_PL2") = py::int_(NUM_INFOS_PL2);
-
-  py::class_<DhState>(m, "State")
-      .def(py::init(&DhState::root))
+template <typename T>
+void register_types(py::module &m, const char *state_name,
+                    const char *traverser_name) {
+  py::class_<T>(m, state_name)
+      .def(py::init())
       .def("player",
-           [](DhState &s) -> std::optional<uint8_t> {
+           [](T &s) -> std::optional<uint8_t> {
              if (s.winner() == 0xff) {
                return s.player();
              } else {
@@ -25,7 +25,7 @@ PYBIND11_MODULE(pydh3, m) {
              }
            })
       .def("next",
-           [](DhState &s, const uint8_t cell) -> void {
+           [](T &s, const uint8_t cell) -> void {
              CHECK(cell < 9, "Invalid cell (must be in range [0..8]; found %d)",
                    cell);
              CHECK(s.winner() == 0xff, "Game is over");
@@ -33,17 +33,8 @@ PYBIND11_MODULE(pydh3, m) {
              CHECK(a & (1 << cell), "The action is not legal");
              s.next(cell);
            })
-      .def("next_abrupt",
-           [](DhState &s, const uint8_t cell) -> void {
-             CHECK(cell < 9, "Invalid cell (must be in range [0..8]; found %d)",
-                   cell);
-             CHECK(s.winner() == 0xff, "Game is over");
-             const uint32_t a = s.available_actions();
-             CHECK(a & (1 << cell), "The action is not legal");
-             s.next_abrupt(cell);
-           })
       .def("winner",
-           [](const DhState &s) -> std::optional<uint8_t> {
+           [](const T &s) -> std::optional<uint8_t> {
              const uint8_t w = s.winner();
              if (w != 0xff) {
                return w;
@@ -52,7 +43,7 @@ PYBIND11_MODULE(pydh3, m) {
              }
            })
       .def("action_mask",
-           [](const DhState &s) -> std::array<bool, 9> {
+           [](const T &s) -> std::array<bool, 9> {
              std::array<bool, 9> mask;
              for (uint32_t i = 0, a = s.available_actions(); i < 9;
                   ++i, a >>= 1) {
@@ -60,39 +51,37 @@ PYBIND11_MODULE(pydh3, m) {
              }
              return mask;
            })
-      .def("infoset", &DhState::get_infoset)
-      .def("__str__", &DhState::debug_string)
-      .def("__repr__", &DhState::debug_string);
+      .def("infoset", &T::get_infoset)
+      .def("__str__", &T::to_string)
+      .def("__repr__", &T::to_string);
 
-  py::class_<EvExpl>(m, "EvExpl")
-      .def_readonly("ev0", &EvExpl::ev0)
-      .def_readonly("expl", &EvExpl::expl);
-
-  py::class_<DhTraverser>(m, "Traverser")
+  py::class_<Traverser<T>>(m, traverser_name)
       .def(py::init<>())
       .def(
           "ev_and_exploitability",
-          [](DhTraverser &traverser,
+          [](Traverser<T> &traverser,
              py::array_t<Real, py::array::c_style> strat0,
              py::array_t<Real, py::array::c_style> strat1) -> EvExpl {
-            CHECK(
-                strat0.ndim() == 2 && strat0.shape(0) == NUM_INFOS_PL1 &&
-                    strat0.shape(1) == 9,
-                "Invalid shape for Player 1's strategy. Must be (%d, 9); found "
-                "(%lu, %lu)",
-                NUM_INFOS_PL1, strat0.shape(0), strat0.shape(1));
-            CHECK(
-                strat1.ndim() == 2 && strat1.shape(0) == NUM_INFOS_PL2 &&
-                    strat1.shape(1) == 9,
-                "Invalid shape for Player 2's strategy. Must be (%d, 9); found "
-                "(%lu, %lu)",
-                NUM_INFOS_PL2, strat1.shape(0), strat1.shape(1));
+            // clang-format off
+            CHECK(strat0.ndim() == 2 &&
+                      strat0.shape(0) == traverser.treeplex[0].num_infosets() &&
+                      strat0.shape(1) == 9,
+                  "Invalid shape for Player 1's strategy. Must be (%d, 9); found (%lu, %lu)", 
+                  traverser.treeplex[0].num_infosets(), strat0.shape(0),
+                  strat0.shape(1));
+            CHECK(strat1.ndim() == 2 &&
+                      strat1.shape(0) == traverser.treeplex[1].num_infosets() &&
+                      strat1.shape(1) == 9,
+                  "Invalid shape for Player 2's strategy. Must be (%d, 9); (%lu, %lu)",
+                  traverser.treeplex[1].num_infosets(), strat1.shape(0),
+                  strat1.shape(1));
+            // clang-format on
 
             return traverser.ev_and_exploitability(
                 {strat0.data(), strat1.data()});
           })
       .def("infoset_desc",
-           [](const DhTraverser &traverser, const uint8_t p,
+           [](const Traverser<T> &traverser, const uint8_t p,
               const uint32_t row) -> std::string {
              CHECK(p == 0 || p == 1,
                    "Invalid player (expected 0 or 1; found %d)", p);
@@ -109,7 +98,7 @@ PYBIND11_MODULE(pydh3, m) {
              return out;
            })
       .def("construct_uniform_strategies",
-           [](const DhTraverser &traverser)
+           [](const Traverser<T> &traverser)
                -> std::array<py::array_t<Real, py::array::c_style>, 2> {
              std::array<py::array_t<Real, py::array::c_style>, 2> out;
 
@@ -122,5 +111,28 @@ PYBIND11_MODULE(pydh3, m) {
              }
 
              return out;
-           });
+           })
+      .def_property(
+          "NUM_INFOS_PL1",
+          [](const Traverser<T> &traverser) {
+            return traverser.treeplex[0].num_infosets();
+          },
+          nullptr)
+      .def_property(
+          "NUM_INFOS_PL2",
+          [](const Traverser<T> &traverser) {
+            return traverser.treeplex[0].num_infosets();
+          },
+          nullptr);
+}
+
+PYBIND11_MODULE(pydh3, m) {
+  py::class_<EvExpl>(m, "EvExpl")
+      .def_readonly("ev0", &EvExpl::ev0)
+      .def_readonly("expl", &EvExpl::expl);
+
+  register_types<DhState<false>>(m, "DhState", "DhTraverser");
+  register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser");
+  register_types<PtttState<false>>(m, "PtttState", "PtttTraverser");
+  register_types<PtttState<true>>(m, "AbruptPtttState", "AbruptPtttTraverser");
 }

@@ -6,11 +6,11 @@
 #include <valarray>
 #include <vector>
 
+#include "dh_state.h"
 #include "log.h"
+#include "pttt_state.h"
 
 using Real = float;
-const uint32_t NUM_INFOS_PL1 = 3720850;
-const uint32_t NUM_INFOS_PL2 = 2352067;
 
 struct InfosetMetadata {
   uint32_t legal_actions;
@@ -44,11 +44,11 @@ struct EvExpl {
   std::array<Real, 2> expl;
 };
 
-struct DhTraverser {
+template <typename T> struct Traverser {
   Treeplex treeplex[2];
   std::valarray<Real> gradients[2];
 
-  DhTraverser();
+  Traverser();
   void compute_gradients(const std::array<const Real *, 2> strategies);
   EvExpl ev_and_exploitability(const std::array<const Real *, 2> strategies);
 

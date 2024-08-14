@@ -5,9 +5,10 @@
 #include <cstdint>
 #include <iostream>
 
+#include "base_state.h"
 #include "log.h"
 
-inline std::string xvec_str(const uint8_t *x, const char c) {
+inline std::string dh_xvec_str(const uint8_t *x, const char c) {
   std::string lines[] = {
       "                _____",                    //
       "               /     \\",                  //
@@ -62,43 +63,11 @@ inline std::string xvec_str(const uint8_t *x, const char c) {
   return repr;
 }
 
-struct DhState {
-  uint8_t x[2][9];
-  uint8_t p; // player
-  uint8_t t[2];
-
-  static DhState root() {
-    return DhState{
-        .x = {{0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}},
-        .p = 0,
-        .t = {0, 0},
-    };
-  }
-
-  uint8_t player() const { return p; }
-
-  void next(const uint8_t i) {
-    ++t[p];
-    x[p][i] = t[p] << 1;
-    if (x[p ^ 1][i] == 0) {
-      x[p][i] |= 1;
-      p ^= 1;
-    }
-  }
-
-  void next_abrupt(const uint8_t i) {
-    ++t[p];
-    x[p][i] = t[p] << 1;
-    if (x[p ^ 1][i] == 0) {
-      x[p][i] |= 1;
-    }
-    // Since this is the abrupt variant, the turn
-    // always passes to the opponent.
-    p ^= 1;
-  }
-
+template <bool abrupt> struct DhState : public BaseState<abrupt> {
   uint8_t winner() const {
+    const auto &x = this->x;
     uint8_t a, b, c;
+
     a = x[0][1] & (x[0][0] | x[0][3]);
     b = x[0][4] & (x[0][3] | x[0][6]);
     c = x[0][7] & x[0][6];
@@ -126,64 +95,21 @@ struct DhState {
     return 0xff; // No winner
   }
 
-  uint32_t available_actions() const {
-    uint32_t actions = 0;
-    for (int i = 0; i < 9; ++i) {
-      if (!x[p][i]) {
-        actions |= (1 << i);
-      }
-    }
-    return actions;
-  }
-
-  uint64_t get_infoset() const {
-    uint64_t info = 0;
-    uint8_t t_ = t[p];
-    for (int i = 0; i < 9; ++i) {
-      const uint8_t to = x[p][i];
-      const uint8_t td = t_ - (x[p][i] >> 1);
-      assert(td <= 9);
-      info |= uint64_t(((i + 1) << 1) + (to & 1)) << (5 * td);
-    }
-    info &= (uint64_t(1) << (5 * t_)) - 1;
-    return info;
-  }
-
-  std::string debug_string() const {
+  std::string to_string() const {
+    const auto &x = this->x;
     std::string out;
+
     if (winner() == 0xff) {
-      out += "** It is Player " + std::to_string(player() + 1) + "'s turn\n";
+      out +=
+          "** It is Player " + std::to_string(this->player() + 1) + "'s turn\n";
     } else {
       out +=
           "** GAME OVER -- Player " + std::to_string(winner() + 1) + " wins\n";
     }
     out += "** Player 1's board:\n";
-    out += xvec_str(x[0], 'X');
+    out += dh_xvec_str(x[0], 'X');
     out += "\n** Player 2's board:\n";
-    out += xvec_str(x[1], 'O');
+    out += dh_xvec_str(x[1], 'O');
     return out;
   }
 };
-
-inline uint8_t num_actions(uint64_t infoset) {
-  uint8_t actions = 0;
-  for (; infoset; ++actions, infoset >>= 5)
-    ;
-  return actions;
-}
-
-inline uint64_t parent_infoset(const uint64_t infoset) { return infoset >> 5; }
-inline uint8_t parent_action(const uint64_t infoset) {
-  return ((infoset >> 1) & 0b1111) - 1;
-}
-
-inline std::array<uint8_t, 9> infoset_xvec(uint64_t infoset) {
-  const uint8_t na = num_actions(infoset);
-  std::array<uint8_t, 9> x = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-  for (int i = na; infoset; --i, infoset >>= 5) {
-    const uint8_t co = infoset & 0b11111;
-    assert(co < 18 && i >= 1);
-    x[(co >> 1) - 1] = (i << 1) + (co & 1);
-  }
-  return x;
-}

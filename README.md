@@ -130,8 +130,8 @@ In order to compute exploitability and expected values, the library expects the
 input strategies to be in a specific tensor format. The library supports the numpy
 representation, which can be extracted from torch using the `.numpy()` method.
 
-The strategy tensor for player 1 must have shape `(dh3.NUM_INFOS_PL1, 9)`, and for Player 2 it 
-must have shape `(dh3.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
+The strategy tensor for player 1 must have shape `(traverser.NUM_INFOS_PL1, 9)`, and for Player 2 it 
+must have shape `(traverser.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
 
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
 
@@ -140,7 +140,7 @@ import pydh3 as dh3
 
 t = dh3.Traverser()  # This takes roughly 55s on my machine.
 (x, y) = t.construct_uniform_strategies()
-assert(x.shape == (3720850, 9))
+assert(x.shape == (t.NUM_INFOS_PL1, 9))
 ret = t.ev_and_exploitability(x, y)   # This takes roughly 75s on my machine.
 # Sample output:
 #
