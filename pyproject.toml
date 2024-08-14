@@ -1,0 +1,59 @@
+[build-system]
+requires = ["scikit_build_core"]
+build-backend = "scikit_build_core.build"
+
+
+[project]
+name = "dh3"
+version = "0.0.1"
+description="dh3"
+readme = "README.md"
+authors = [
+  { name ="Gabriele Farina", email = "gfarina@mit.edu" },
+]
+requires-python = ">=3.7"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[tool.pixi.project]
+name = "dh3"
+version = "0.1.0"
+description = "Add a short description here"
+authors = ["Gabriele Farina <gfarina@mit.edu>"]
+channels = ["conda-forge", "nodefaults"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+cmake = ">=3.25"
+# https://github.com/pybind/pybind11/issues/5206
+gcc = "<=13"
+gxx = "<=13"
+ninja = "*"
+numpy = "<2"
+pip = "*"
+pybind11 = "*"
+python = ">3.10"
+scikit-build-core = ">=0.3.3"
+[tool.pixi.pypi-dependencies]
+dh3 = { path = ".", editable = true }
+
+[tool.pixi.feature.dev.dependencies]
+ipykernel = "*"
+
+[tool.pixi.environments]
+default = {features = ["dev"]}
+
+[tool.scikit-build]
+wheel.expand-macos-universal-tags = true
+wheel.license-files = []
+wheel.packages = ["csrc/dh3"]
+# build.targets = ["pydh3"]
