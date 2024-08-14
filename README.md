@@ -120,7 +120,7 @@ You can use `next_abrupt` instead of `next` to use the abrupt DH rule.
 
 ### Player goals
 
-Player 0 wants to connect down-right (cells {0,1,2} with {2,5,8}).
+Player 0 wants to connect down-right (cells {0,3,6} with {2,5,8}).
 
 Player 1 wants to connect up-right (cells {0,1,2} with {6,7,8}).
 
