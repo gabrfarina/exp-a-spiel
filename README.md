@@ -1,6 +1,6 @@
-# DarkHex3
+# DarkHex3 & PhantomTTT
 
-High-performance implementation of DarkHex3 / Abrupt DarkHex3, with support for
+High-performance implementation of DarkHex3 / Abrupt DarkHex3 / PhantomTTT / Abrupt PhantomTTT, with support for
 exploitability and best response computation.
 
 ## Building
@@ -147,7 +147,9 @@ input strategies to be in a specific tensor format. The library supports the num
 representation, which can be extracted from torch using the `.numpy()` method.
 
 The strategy tensor for player 1 must have shape `(traverser.NUM_INFOS_PL1, 9)`, and for Player 2 it 
-must have shape `(traverser.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
+must have shape `(traverser.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`
+for (regular, non-abrupt) DarkHex3.
+.
 
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
 
