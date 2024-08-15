@@ -154,7 +154,7 @@ for (regular, non-abrupt) DarkHex3.
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
 
 ```
-import pydh3 as dh3
+import dh3
 
 t = dh3.DhTraverser()  # This takes roughly 55s on my machine.
 (x, y) = t.construct_uniform_strategies()
