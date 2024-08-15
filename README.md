@@ -28,11 +28,19 @@ To make sure everything works well you can do
 
 ### Game state
 
+There are four state objects defined for now:
+- `DhState`
+- `AbruptDhState`
+- `PtttState`
+- `AbruptPtttState`
+
+Here is an example of API, which is common to all games.
+
 ```
 import dh3
 
-s = dh3.State() # Constructs a new initial state
-assert(s.winner() == None)
+s = dh3.DhState() # Constructs a new initial state
+assert(s.is_terminal() == False)
 assert(str(s) ==
 r"""** It is Player 1's turn
 ** Player 1's board:
@@ -73,7 +81,7 @@ assert(s.player() == 1) # The turn has passed to player 1 now
 s.next(0)               # Player 2 plays in cell 0 (which is occupied)...
 assert(s.player() == 1) # ... so the turn does not pass to the opponent
 s.next(2)               # Player 2 plays in cell 2
-assert(s.winner() == None)
+assert(s.is_terminal() == False)
 assert(s.player() == 0)
 s.next(1)               # Player 1 plays in cell 1
 assert(s.player() == 1)
@@ -116,31 +124,39 @@ r"""** It is Player 2's turn
 # the point of view of the player) at which that cell was probed or filled.
 ```
 
-You can use `next_abrupt` instead of `next` to use the abrupt DH rule.
+Once the game is over, `s.winner()` contains the winner. It can be `0`, `1` or `None` in case of a tie (only applicable to PTTT).
 
 ### Player goals
 
-Player 0 wants to connect down-right (cells {0,3,6} with {2,5,8}).
+In DH and Abrupt DH:
+- Player 0 wants to connect down-right (cells {0,3,6} with {2,5,8}).
+- Player 1 wants to connect up-right (cells {0,1,2} with {6,7,8}).
 
-Player 1 wants to connect up-right (cells {0,1,2} with {6,7,8}).
+In PTTT and Abrupt PTTT, each player wants to put three of their symbols in a line as usual.
 
-### Strategy representation
+### Traversers and strategy representation
+
+Anything related to manipulating the game tree, computing exploitability, et cetera goes through a "Traverser", which is able to quickly expand the game tree. There are four traverser objects implemented:
+- `DhTraverser`
+- `AbruptDhTraverser`
+- `PtttTraverser`
+- `AbruptPtttTraverser`
 
 In order to compute exploitability and expected values, the library expects the
 input strategies to be in a specific tensor format. The library supports the numpy
 representation, which can be extracted from torch using the `.numpy()` method.
 
-The strategy tensor for player 1 must have shape `(dh3.NUM_INFOS_PL1, 9)`, and for Player 2 it 
-must have shape `(dh3.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
+The strategy tensor for player 1 must have shape `(traverser.NUM_INFOS_PL1, 9)`, and for Player 2 it 
+must have shape `(traverser.NUM_INFOS_PL2, 9)`. For reference, `NUM_INFOS_PL1 = 3720850` and `NUM_INFOS_PL2 = 2352067`.
 
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
 
 ```
 import pydh3 as dh3
 
-t = dh3.Traverser()  # This takes roughly 55s on my machine.
+t = dh3.DhTraverser()  # This takes roughly 55s on my machine.
 (x, y) = t.construct_uniform_strategies()
-assert(x.shape == (3720850, 9))
+assert(x.shape == (t.NUM_INFOS_PL1, 9))
 ret = t.ev_and_exploitability(x, y)   # This takes roughly 75s on my machine.
 # Sample output:
 #
