@@ -7,6 +7,8 @@
 
 #include "log.h"
 
+const uint8_t TIE = 0xee;
+
 template <bool abrupt> struct BaseState {
   uint8_t x[2][9];
   uint8_t p; // player

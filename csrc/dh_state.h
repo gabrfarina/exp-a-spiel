@@ -95,6 +95,8 @@ template <bool abrupt> struct DhState : public BaseState<abrupt> {
     return 0xff; // No winner
   }
 
+  bool is_terminal() const { return winner() != 0xff; }
+
   std::string to_string() const {
     const auto &x = this->x;
     std::string out;

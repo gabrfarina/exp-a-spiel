@@ -8,8 +8,6 @@
 #include "base_state.h"
 #include "log.h"
 
-const uint8_t TIE = 0xee;
-
 inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
   std::string lines[] = {"...", "...", "..."};
 
@@ -55,6 +53,8 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
 
     return 0xff; // No winner yet
   }
+
+  bool is_terminal() const { return winner() != 0xff; }
 
   std::string to_string() const {
     const auto &x = this->x;

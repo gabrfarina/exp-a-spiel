@@ -18,7 +18,7 @@ void register_types(py::module &m, const char *state_name,
       .def(py::init())
       .def("player",
            [](T &s) -> std::optional<uint8_t> {
-             if (s.winner() == 0xff) {
+             if (!s.is_terminal()) {
                return s.player();
              } else {
                return std::nullopt;
@@ -28,17 +28,22 @@ void register_types(py::module &m, const char *state_name,
            [](T &s, const uint8_t cell) -> void {
              CHECK(cell < 9, "Invalid cell (must be in range [0..8]; found %d)",
                    cell);
-             CHECK(s.winner() == 0xff, "Game is over");
+             CHECK(!s.is_terminal(), "Game is over");
              const uint32_t a = s.available_actions();
              CHECK(a & (1 << cell), "The action is not legal");
              s.next(cell);
            })
+      .def("is_terminal", &T::is_terminal)
       .def("winner",
            [](const T &s) -> std::optional<uint8_t> {
+             CHECK(
+                 s.is_terminal(),
+                 "Game is not over (you can check with `state.is_terminal()`)");
              const uint8_t w = s.winner();
-             if (w != 0xff) {
+             if (w < 2) {
                return w;
              } else {
+               assert(w == TIE);
                return std::nullopt;
              }
            })
