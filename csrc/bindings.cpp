@@ -144,7 +144,20 @@ void register_types(py::module &m, const char *state_name,
 PYBIND11_MODULE(pydh3, m) {
   py::class_<EvExpl>(m, "EvExpl")
       .def_readonly("ev0", &EvExpl::ev0)
-      .def_readonly("expl", &EvExpl::expl);
+      .def_readonly("expl", &EvExpl::expl)
+      .def_property_readonly(
+          "best_response",
+          [](const EvExpl &ev)
+              -> std::array<py::array_t<Real, py::array::c_style>, 2> {
+            return {py::array_t<Real, py::array::c_style>(
+                        std::array<py::ssize_t, 2>{
+                            ev.best_response[0].size() / 9, 9},
+                        &ev.best_response[0][0]),
+                    py::array_t<Real, py::array::c_style>(
+                        std::array<py::ssize_t, 2>{
+                            ev.best_response[1].size() / 9, 9},
+                        &ev.best_response[1][0])};
+          });
 
   register_types<DhState<false>>(m, "DhState", "DhTraverser");
   register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser");

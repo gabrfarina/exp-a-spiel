@@ -182,7 +182,7 @@ ret = t.ev_and_exploitability(x, y)   # This takes roughly 75s on my machine.
 # [1723044495.907|>INFO] [traverser.cpp:348] ... all done.
 # [1723044495.907|>INFO] [traverser.cpp:356] computing expected value...
 # [1723044495.919|>INFO] [traverser.cpp:377] computing exploitabilities...
-# [1723044495.952|>INFO] [traverser.cpp:383] ... all done. (ev0 = 0.333684, expl = 0.666318, 1.166488)
+# [1723044495.952|>INFO] [traverser.cpp:383] ... all done. (ev0 = 0.333684, expl = 1.166488, 0.666318)
 print(ret.ev0, ret.expl)
 ```
 

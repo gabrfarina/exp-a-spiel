@@ -153,7 +153,11 @@ void Treeplex::bh_to_sf(Real *buf) const {
 #endif
 }
 
-Real Treeplex::br_value(Real *buf) const {
+Real Treeplex::br(Real *buf, Real *strat) const {
+  if (strat) {
+    memset(strat, 0, num_infosets() * 9 * sizeof(Real));
+  }
+
 #ifdef DEBUG
   validate_vector(buf);
 #endif
@@ -165,12 +169,20 @@ Real Treeplex::br_value(Real *buf) const {
     const uint32_t parent_a = parent_action(info);
 
     Real max_val = std::numeric_limits<Real>::lowest();
+    uint8_t best_action = 0xff;
     for (uint32_t j = 0; j < 9; ++j) {
-      if (mask & (1 << j)) {
-        max_val = std::max(max_val, buf[i * 9 + j]);
+      if (mask & (1 << j) && buf[i * 9 + j] > max_val) {
+        best_action = j;
+        max_val = buf[i * 9 + j];
       }
     }
+    assert(best_action != 0xff);
+
     buf[parent * 9 + parent_a] += max_val;
+
+    if (strat) {
+      strat[i * 9 + best_action] = 1.0;
+    }
   }
 
   // Finally, aggregate at the root.
@@ -181,6 +193,7 @@ Real Treeplex::br_value(Real *buf) const {
       max_val = std::max(max_val, buf[j]);
     }
   }
+
   return max_val;
 }
 
@@ -367,15 +380,22 @@ EvExpl Traverser<T>::ev_and_exploitability(
   }
 #endif
 
-  std::array<Real, 2> expl = {-ev0, ev0};
+  EvExpl out;
+  out.ev0 = ev0;
+  out.expl = {ev0, -ev0};
+  out.best_response[0].resize(treeplex[0].num_infosets() * 9);
+  out.best_response[1].resize(treeplex[1].num_infosets() * 9);
+
   INFO("computing exploitabilities...");
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    expl[p] += treeplex[p].br_value(&gradients[p][0]);
+    out.expl[1 - p] +=
+        treeplex[p].br(&gradients[p][0], &out.best_response[p][0]);
   }
 
-  INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, expl[0], expl[1]);
-  return {.ev0 = ev0, .expl = expl};
+  INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, out.expl[0],
+       out.expl[1]);
+  return out;
 }
 
 template class Traverser<DhState<false>>;
