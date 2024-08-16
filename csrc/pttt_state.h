@@ -21,7 +21,7 @@ inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
   }
 
   std::string repr;
-  for (int i = 0; i < 13; ++i) {
+  for (int i = 0; i < 3; ++i) {
     repr += lines[i];
     repr += '\n';
   }
@@ -33,7 +33,15 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
   uint8_t winner() const {
     const auto &x = this->x;
     const auto &t = this->t;
-    uint8_t a, b, c;
+
+    const uint8_t num_filled_p0 = (x[0][0] & 1) + (x[0][1] & 1) +
+                                  (x[0][2] & 1) + (x[0][3] & 1) +
+                                  (x[0][4] & 1) + (x[0][5] & 1) +
+                                  (x[0][6] & 1) + (x[0][7] & 1) + (x[0][8] & 1);
+    const uint8_t num_filled_p1 = (x[0][0] & 1) + (x[0][1] & 1) +
+                                  (x[0][2] & 1) + (x[0][3] & 1) +
+                                  (x[0][4] & 1) + (x[0][5] & 1) +
+                                  (x[0][6] & 1) + (x[0][7] & 1) + (x[0][8] & 1);
 
     if (((x[0][0] & x[0][1] & x[0][2]) | (x[0][3] & x[0][4] & x[0][5]) |
          (x[0][6] & x[0][7] & x[0][8]) | (x[0][0] & x[0][3] & x[0][6]) |
@@ -47,8 +55,8 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
                 (x[1][1] & x[1][4] & x[1][8]) | (x[1][2] & x[1][4] & x[1][6])) &
                1) {
       return 1;
-    } else if (t[0] == 9 && t[1] == 9) {
-      return TIE; // Draw
+    } else if (num_filled_p0 + num_filled_p1 == 9) {
+      return TIE;
     }
 
     return 0xff; // No winner yet
@@ -68,6 +76,7 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
       out +=
           "** GAME OVER -- Player " + std::to_string(winner() + 1) + " wins\n";
     } else {
+      assert(w == TIE);
       out += "** GAME OVER -- TIE\n";
     }
     out += "** Player 1's board:\n";

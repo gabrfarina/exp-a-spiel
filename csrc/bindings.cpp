@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -10,6 +11,18 @@
 #include "traverser.h"
 
 namespace py = pybind11;
+
+namespace {
+std::string infoset_desc(uint64_t key) {
+  std::string out = "";
+  for (; key; key >>= 5) {
+    out += (key & 1) ? '*' : '.';
+    out += std::to_string(((key & 0b11110) >> 1) - 1);
+  }
+  reverse(out.begin(), out.end());
+  return out;
+}
+} // namespace
 
 template <typename T>
 void register_types(py::module &m, const char *state_name,
@@ -56,7 +69,10 @@ void register_types(py::module &m, const char *state_name,
              }
              return mask;
            })
-      .def("infoset", &T::get_infoset)
+      .def("infoset_desc",
+           [](const T &s) -> std::string {
+             return infoset_desc(s.get_infoset());
+           })
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string);
 
@@ -94,13 +110,7 @@ void register_types(py::module &m, const char *state_name,
                    "Invalid row (expected < %d; found %d)",
                    traverser.treeplex[p].num_infosets(), row);
              uint64_t key = traverser.treeplex[p].infoset_keys.at(row);
-             std::string out = "";
-             for (; key; key >>= 5) {
-               out += (key & 1) ? '*' : '.';
-               out += std::to_string(((key & 0b11110) >> 1) - 1);
-             }
-             reverse(out.begin(), out.end());
-             return out;
+             return infoset_desc(key);
            })
       .def("construct_uniform_strategies",
            [](const Traverser<T> &traverser)
