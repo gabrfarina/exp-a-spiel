@@ -24,6 +24,12 @@ To make sure everything works well you can do
 >>> import dh3
 ```
 
+To re-build the environment (eg. after having modified the C++ code), run
+```
+> $ pixi clean
+```
+then follow the steps above to re-create and activate the environment.
+
 ## Python interface
 
 ### Game state
@@ -46,30 +52,30 @@ r"""** It is Player 1's turn
 ** Player 1's board:
                 _____
                /     \
-         _____/   6   \_____
+         _____/   2   \_____
         /     \       /     \
-  _____/   3   \_____/   7   \_____
+  _____/   1   \_____/   5   \_____
  /     \       /     \       /     \
 /   0   \_____/   4   \_____/   8   \
 \       /     \       /     \       /
- \_____/   1   \_____/   5   \_____/
+ \_____/   3   \_____/   7   \_____/
        \       /     \       /
-        \_____/   2   \_____/
+        \_____/   6   \_____/
               \       /
                \_____/
 
 ** Player 2's board:
                 _____
                /     \
-         _____/   6   \_____
+         _____/   2   \_____
         /     \       /     \
-  _____/   3   \_____/   7   \_____
+  _____/   1   \_____/   5   \_____
  /     \       /     \       /     \
 /   0   \_____/   4   \_____/   8   \
 \       /     \       /     \       /
- \_____/   1   \_____/   5   \_____/
+ \_____/   3   \_____/   7   \_____/
        \       /     \       /
-        \_____/   2   \_____/
+        \_____/   6   \_____/
               \       /
                \_____/
 """)
@@ -93,32 +99,32 @@ r"""** It is Player 2's turn
 ** Player 1's board:
                 _____
                /     \
-         _____/   6   \_____
-        /     \       /     \
-  _____/   3   \_____/   7   \_____
- /XXXXX\       /     \       /     \
-/X  0  X\_____/   4   \_____/   8   \
-\X t=1 X/XXXXX\       /     \       /
- \XXXXX/X  1  X\_____/   5   \_____/
-       \X t=2 X/     \       /
-        \XXXXX/   2   \_____/
+         _____/   2   \_____
+        /XXXXX\       /     \
+  _____/X  1  X\_____/   5   \_____
+ /XXXXX\X t=2 X/     \       /     \
+/X  0  X\XXXXX/   4   \_____/   8   \
+\X t=1 X/     \       /     \       /
+ \XXXXX/   3   \_____/   7   \_____/
+       \       /     \       /
+        \_____/   6   \_____/
               \       /
                \_____/
 
 ** Player 2's board:
                 _____
-               /     \
-         _____/   6   \_____
-        /     \       /     \
-  _____/   3   \_____/   7   \_____
+               /OOOOO\
+         _____/O  2  O\_____
+        /     \O t=2 O/     \
+  _____/   1   \OOOOO/   5   \_____
  /     \       /     \       /     \
 /   0   \_____/   4   \_____/   8   \
 \  t=1  /     \       /     \       /
- \_____/   1   \_____/   5   \_____/
-       \       /OOOOO\       /
-        \_____/O  2  O\_____/
-              \O t=2 O/
-               \OOOOO/
+ \_____/   3   \_____/   7   \_____/
+       \       /     \       /
+        \_____/   6   \_____/
+              \       /
+               \_____/
 """)
 # Under each cell ID, a timestamp of the form "t=X" denotes the time (from
 # the point of view of the player) at which that cell was probed or filled.
@@ -129,8 +135,8 @@ Once the game is over, `s.winner()` contains the winner. It can be `0`, `1` or `
 ### Player goals
 
 In DH and Abrupt DH:
-- Player 0 wants to connect down-right (cells {0,3,6} with {2,5,8}).
-- Player 1 wants to connect up-right (cells {0,1,2} with {6,7,8}).
+- Player 1 wants to connect down-right (cells {0,1,2} with {6,7,8}).
+- Player 2 wants to connect up-right (cells {0,3,6} with {2,5,8}).
 
 In PTTT and Abrupt PTTT, each player wants to put three of their symbols in a line as usual.
 
