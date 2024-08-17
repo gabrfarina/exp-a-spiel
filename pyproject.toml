@@ -56,4 +56,7 @@ default = {features = ["dev"]}
 wheel.expand-macos-universal-tags = true
 wheel.license-files = []
 wheel.packages = ["csrc/dh3"]
-# build.targets = ["pydh3"]
+editable.rebuild = true
+build.verbose = true
+build.targets = ["pydh3"]
+build-dir = "./build"

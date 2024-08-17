@@ -322,7 +322,7 @@ packages:
   name: dh3
   version: 0.0.1
   path: .
-  sha256: 58a0a2e40a3b72a8c01acc52ce93c93e450a00a934a7529877efdb2fb7c8fead
+  sha256: f45bcfeedb20a3e28d17e3226aa3920b3dc30dbb486a27cf36f6fcfa40a7e6ba
   requires_python: '>=3.7'
   editable: true
 - kind: conda
