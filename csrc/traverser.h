@@ -6,11 +6,11 @@
 #include <valarray>
 #include <vector>
 
+#include "dh_state.h"
 #include "log.h"
+#include "pttt_state.h"
 
 using Real = float;
-const uint32_t NUM_INFOS_PL1 = 3720850;
-const uint32_t NUM_INFOS_PL2 = 2352067;
 
 struct InfosetMetadata {
   uint32_t legal_actions;
@@ -36,19 +36,22 @@ struct Treeplex {
   void validate_strategy(const Real *buf) const;
   void set_uniform(Real *buf) const;
   void bh_to_sf(Real *buf) const;
-  Real br_value(Real *buf) const;
+  Real br(Real *grad, Real *strat = nullptr) const;
 };
 
 struct EvExpl {
   Real ev0;
+  // expl[0] is how exploitable player 0 is by a best-responding player 1
   std::array<Real, 2> expl;
+  // best_response[0] is the best response to player 1's strategy
+  std::array<std::valarray<Real>, 2> best_response;
 };
 
-struct DhTraverser {
+template <typename T> struct Traverser {
   Treeplex treeplex[2];
   std::valarray<Real> gradients[2];
 
-  DhTraverser();
+  Traverser();
   void compute_gradients(const std::array<const Real *, 2> strategies);
   EvExpl ev_and_exploitability(const std::array<const Real *, 2> strategies);
 

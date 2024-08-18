@@ -4,21 +4,20 @@
 #include <omp.h>
 
 #include "log.h"
-#include "state.h"
 #include "traverser.h"
 
 using std::size_t;
 
 namespace {
-void discover_infosets_thread(DhState root,
-                              std::array<InfosetMap, 2> *infosets) {
-  DhState stack[100];
+template <typename T>
+void discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
+  T stack[100];
   stack[0] = root;
   size_t stack_len = 1;
 
   while (stack_len) {
     // Pop from stack
-    const DhState s = stack[--stack_len];
+    const T s = stack[--stack_len];
     const uint8_t p = s.player();
 
     if (s.winner() == 0xff) {
@@ -33,7 +32,7 @@ void discover_infosets_thread(DhState root,
 
       for (int i = 0; i < 9; ++i, a >>= 1) {
         if (a & 1) {
-          DhState ss = s;
+          T ss = s;
           ss.next(i);
           stack[stack_len++] = ss;
           assert(stack_len < 100);
@@ -43,12 +42,13 @@ void discover_infosets_thread(DhState root,
   }
 }
 
-void compute_gradients_thread(DhState root,
+template <typename T>
+void compute_gradients_thread(T root,
                               const std::array<uint32_t, 2> init_parent_seqs,
                               const Treeplex *treeplex,
                               std::array<const Real *, 2> sf_strategies,
                               std::array<Real *, 2> gradients) {
-  std::tuple<DhState,                // Current state
+  std::tuple<T,                      // Current state
              std::array<uint32_t, 2> // Parent seqs
              >
       stack[100];
@@ -57,7 +57,7 @@ void compute_gradients_thread(DhState root,
 
   while (stack_len) {
     const auto it = stack[--stack_len];
-    const DhState &s = std::get<0>(it);
+    const T &s = std::get<0>(it);
     const uint8_t p = s.player();
     const uint8_t w = s.winner();
     const uint64_t infoset = s.get_infoset();
@@ -70,14 +70,13 @@ void compute_gradients_thread(DhState root,
       uint32_t a = s.available_actions();
       for (int i = 0; i < 9; ++i, a >>= 1) {
         if (a & 1) {
-          DhState ss = s;
+          T ss = s;
           ss.next(i);
           new_seqs[p] = 9 * info_id + i;
           stack[stack_len++] = {ss, new_seqs};
         }
       }
-    } else {
-      assert(w == 0 || w == 1);
+    } else if (w == 0 || w == 1) {
       const Real sign = -2.0 * w + 1.0; // 1 if w == 0 else -1
       gradients[0][seqs[0]] += sign * sf_strategies[1][seqs[1]];
       gradients[1][seqs[1]] -= sign * sf_strategies[0][seqs[0]];
@@ -154,7 +153,11 @@ void Treeplex::bh_to_sf(Real *buf) const {
 #endif
 }
 
-Real Treeplex::br_value(Real *buf) const {
+Real Treeplex::br(Real *buf, Real *strat) const {
+  if (strat) {
+    memset(strat, 0, num_infosets() * 9 * sizeof(Real));
+  }
+
 #ifdef DEBUG
   validate_vector(buf);
 #endif
@@ -166,12 +169,20 @@ Real Treeplex::br_value(Real *buf) const {
     const uint32_t parent_a = parent_action(info);
 
     Real max_val = std::numeric_limits<Real>::lowest();
+    uint8_t best_action = 0xff;
     for (uint32_t j = 0; j < 9; ++j) {
-      if (mask & (1 << j)) {
-        max_val = std::max(max_val, buf[i * 9 + j]);
+      if (mask & (1 << j) && buf[i * 9 + j] > max_val) {
+        best_action = j;
+        max_val = buf[i * 9 + j];
       }
     }
+    assert(best_action != 0xff);
+
     buf[parent * 9 + parent_a] += max_val;
+
+    if (strat) {
+      strat[i * 9 + best_action] = 1.0;
+    }
   }
 
   // Finally, aggregate at the root.
@@ -182,10 +193,11 @@ Real Treeplex::br_value(Real *buf) const {
       max_val = std::max(max_val, buf[j]);
     }
   }
+
   return max_val;
 }
 
-DhTraverser::DhTraverser() {
+template <typename T> Traverser<T>::Traverser() {
   treeplex[0].infosets.reserve(5000000);
   treeplex[1].infosets.reserve(5000000);
 
@@ -197,7 +209,7 @@ DhTraverser::DhTraverser() {
   INFO("discovering infosets (num threads: %d)...", omp_get_max_threads());
 #pragma omp parallel for
   for (int i = 0; i < 9 * 9; ++i) {
-    DhState s = DhState::root();
+    T s{};
     {
       const uint8_t a = i % 9;
       assert(s.available_actions() & (1 << a));
@@ -225,13 +237,6 @@ DhTraverser::DhTraverser() {
   }
   INFO("... discovery terminated. Found %.2fM infosets",
        (treeplex[0].infosets.size() + treeplex[1].infosets.size()) / 1000000.0);
-
-  CHECK(treeplex[0].infosets.size() == NUM_INFOS_PL1,
-        "Player 1 infosets count mismatch: %lu != %u",
-        treeplex[0].infosets.size(), NUM_INFOS_PL1);
-  CHECK(treeplex[1].infosets.size() == NUM_INFOS_PL2,
-        "Player 2 infosets count mismatch: %lu != %u",
-        treeplex[1].infosets.size(), NUM_INFOS_PL2);
 
 #ifdef DEBUG
   for (int p = 0; p < 2; ++p) {
@@ -294,7 +299,8 @@ DhTraverser::DhTraverser() {
   INFO("... all done.");
 }
 
-void DhTraverser::compute_gradients(
+template <typename T>
+void Traverser<T>::compute_gradients(
     const std::array<const Real *, 2> strategies) {
   INFO("begin gradient computation (num threads: %d)...",
        omp_get_max_threads());
@@ -315,7 +321,7 @@ void DhTraverser::compute_gradients(
   uint32_t num_finished = 0;
 #pragma omp parallel for
   for (unsigned i = 0; i < 9 * 9; ++i) {
-    DhState s = DhState::root();
+    T s{};
     assert(!s.get_infoset());
     s.next(i % 9); // pl1's move
     assert(!s.get_infoset());
@@ -348,7 +354,8 @@ void DhTraverser::compute_gradients(
   INFO("... all done.");
 }
 
-EvExpl DhTraverser::ev_and_exploitability(
+template <typename T>
+EvExpl Traverser<T>::ev_and_exploitability(
     const std::array<const Real *, 2> strategies) {
   INFO("begin exploitability computation...");
   compute_gradients(strategies);
@@ -373,13 +380,25 @@ EvExpl DhTraverser::ev_and_exploitability(
   }
 #endif
 
-  std::array<Real, 2> expl = {-ev0, ev0};
+  EvExpl out;
+  out.ev0 = ev0;
+  out.expl = {ev0, -ev0};
+  out.best_response[0].resize(treeplex[0].num_infosets() * 9);
+  out.best_response[1].resize(treeplex[1].num_infosets() * 9);
+
   INFO("computing exploitabilities...");
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    expl[p] += treeplex[p].br_value(&gradients[p][0]);
+    out.expl[1 - p] +=
+        treeplex[p].br(&gradients[p][0], &out.best_response[p][0]);
   }
 
-  INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, expl[0], expl[1]);
-  return {.ev0 = ev0, .expl = expl};
+  INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, out.expl[0],
+       out.expl[1]);
+  return out;
 }
+
+template class Traverser<DhState<false>>;
+template class Traverser<DhState<true>>;
+template class Traverser<PtttState<false>>;
+template class Traverser<PtttState<true>>;

@@ -11,14 +11,14 @@
 #include <valarray>
 #include <vector>
 
+#include "dh_state.h"
 #include "log.h"
-#include "state.h"
 #include "traverser.h"
 
 int main() {
   INFO("starting dh3 (num threads: %d)", omp_get_max_threads());
 
-  DhTraverser traverser;
+  Traverser<DhState<false>> traverser;
   std::valarray<Real> strategies[2];
 
   strategies[0].resize(traverser.treeplex[0].num_infosets() * 9, 0.0);
