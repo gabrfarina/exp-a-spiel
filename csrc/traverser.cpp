@@ -10,15 +10,17 @@ using std::size_t;
 
 namespace {
 template <typename T>
-void discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
+uint64_t discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
   T stack[100];
   stack[0] = root;
   size_t stack_len = 1;
+  uint64_t count = 0;
 
   while (stack_len) {
     // Pop from stack
     const T s = stack[--stack_len];
     const uint8_t p = s.player();
+    ++count;
 
     if (s.winner() == 0xff) {
       uint32_t a = s.available_actions();
@@ -40,6 +42,8 @@ void discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
       }
     }
   }
+
+  return count;
 }
 
 template <typename T>
@@ -200,7 +204,8 @@ template <typename T> Traverser<T>::Traverser() {
       InfosetMetadata{.legal_actions = 0b111111111, .infoset_id = UINT32_MAX};
 
   INFO("discovering infosets (num threads: %d)...", omp_get_max_threads());
-#pragma omp parallel for
+  uint64_t count = 10;
+#pragma omp parallel for reduction(+ : count)
   for (int i = 0; i < 9 * 9; ++i) {
     T s{};
     {
@@ -215,10 +220,13 @@ template <typename T> Traverser<T>::Traverser() {
     }
 
     std::array<InfosetMap, 2> thread_infosets;
-    ::discover_infosets_thread(s, &thread_infosets);
+    const uint64_t thread_count =
+        ::discover_infosets_thread(s, &thread_infosets);
+    count += thread_count;
 
-    INFO("  > thread %02d found %.2fM infosets", i,
-         (thread_infosets[0].size() + thread_infosets[1].size()) / 1000000.0);
+    INFO("  > thread %02d found %.2fM infosets (%.2fB nodes)", i,
+         (thread_infosets[0].size() + thread_infosets[1].size()) / 1e6,
+         thread_count / 1e9);
 
 #pragma omp critical
     {
@@ -228,8 +236,9 @@ template <typename T> Traverser<T>::Traverser() {
                                   thread_infosets[1].end());
     }
   }
-  INFO("... discovery terminated. Found %.2fM infosets",
-       (treeplex[0].infosets.size() + treeplex[1].infosets.size()) / 1000000.0);
+  INFO("... discovery terminated. Found %.2fM infosets across %.2fB nodes",
+       (treeplex[0].infosets.size() + treeplex[1].infosets.size()) / 1e6,
+       count / 1e9);
 
 #ifdef DEBUG
   for (int p = 0; p < 2; ++p) {

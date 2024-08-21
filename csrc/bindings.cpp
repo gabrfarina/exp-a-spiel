@@ -32,7 +32,7 @@ struct EvExplPy {
   std::array<NdArray, 2> best_response;
 
   // NB: allows implicit conversion
-  EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl{ev.expl[0], ev.expl[1]} {
+  EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl(ev.expl) {
     for (int p = 0; p < 2; ++p) {
       gradient[p] = NdArray(std::array<size_t, 2>{ev.gradient[p].size() / 9, 9},
                             &ev.gradient[p][0]);
