@@ -61,11 +61,11 @@ void compute_gradients_thread(T root,
     const uint8_t p = s.player();
     const uint8_t w = s.winner();
     const uint64_t infoset = s.get_infoset();
-    const auto &seqs = std::get<1>(it);
+    const std::array<uint32_t, 2> &seqs = std::get<1>(it);
 
     if (w == 0xff) {
-      const auto info_id = treeplex[p].infosets.at(infoset).infoset_id;
-      auto new_seqs = seqs;
+      const uint32_t info_id = treeplex[p].infosets.at(infoset).infoset_id;
+      std::array<uint32_t, 2> new_seqs = seqs;
 
       uint32_t a = s.available_actions();
       for (int i = 0; i < 9; ++i, a >>= 1) {
@@ -162,35 +162,28 @@ Real Treeplex::br(Real *buf, Real *strat) const {
   validate_vector(buf);
 #endif
 
-  for (uint32_t i = num_infosets(); i > 0; --i) {
+  Real max_val = std::numeric_limits<Real>::lowest();
+  for (int32_t i = num_infosets() - 1; i >= 0; --i) {
     const uint64_t info = infoset_keys[i];
     const uint32_t mask = legal_actions[i];
-    const uint32_t parent = parent_index[i];
-    const uint32_t parent_a = parent_action(info);
 
-    Real max_val = std::numeric_limits<Real>::lowest();
+    max_val = std::numeric_limits<Real>::lowest();
     uint8_t best_action = 0xff;
     for (uint32_t j = 0; j < 9; ++j) {
-      if (mask & (1 << j) && buf[i * 9 + j] > max_val) {
+      if ((mask & (1 << j)) && (buf[i * 9 + j] > max_val)) {
         best_action = j;
         max_val = buf[i * 9 + j];
       }
     }
     assert(best_action != 0xff);
 
-    buf[parent * 9 + parent_a] += max_val;
-
+    if (i) {
+      const uint32_t parent = parent_index[i];
+      const uint32_t parent_a = parent_action(info);
+      buf[parent * 9 + parent_a] += max_val;
+    }
     if (strat) {
       strat[i * 9 + best_action] = 1.0;
-    }
-  }
-
-  // Finally, aggregate at the root.
-  const uint32_t mask = legal_actions[0];
-  Real max_val = std::numeric_limits<Real>::lowest();
-  for (uint32_t j = 0; j < 9; ++j) {
-    if (mask & (1 << j)) {
-      max_val = std::max(max_val, buf[j]);
     }
   }
 
@@ -275,8 +268,10 @@ template <typename T> Traverser<T>::Traverser() {
 
       auto &info = treeplex[p].infosets[infoset];
       info.infoset_id = i;
-      treeplex[p].parent_index[i] =
-          treeplex[p].infosets[parent_infoset(infoset)].infoset_id;
+      if (i) {
+        treeplex[p].parent_index[i] =
+            treeplex[p].infosets[parent_infoset(infoset)].infoset_id;
+      }
       treeplex[p].legal_actions[i] = info.legal_actions;
     }
   }
@@ -376,7 +371,7 @@ EvExpl Traverser<T>::ev_and_exploitability(
     }
 
     CHECK(std::abs(ev0 + ev1) < 1e-3, "Expected values differ: %.6f != %.6f",
-          ev, ev1);
+          ev0, ev1);
   }
 #endif
 

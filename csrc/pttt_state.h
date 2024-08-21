@@ -32,7 +32,6 @@ inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
 template <bool abrupt> struct PtttState : public BaseState<abrupt> {
   uint8_t winner() const {
     const auto &x = this->x;
-    const auto &t = this->t;
 
     const uint8_t num_filled_p0 = (x[0][0] & 1) + (x[0][1] & 1) +
                                   (x[0][2] & 1) + (x[0][3] & 1) +

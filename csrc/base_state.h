@@ -66,8 +66,12 @@ inline uint8_t num_actions(uint64_t infoset) {
   return actions;
 }
 
-inline uint64_t parent_infoset(const uint64_t infoset) { return infoset >> 5; }
+inline uint64_t parent_infoset(const uint64_t infoset) {
+  assert(infoset);
+  return infoset >> 5;
+}
 inline uint8_t parent_action(const uint64_t infoset) {
+  assert(infoset);
   return ((infoset >> 1) & 0b1111) - 1;
 }
 

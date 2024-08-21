@@ -10,7 +10,7 @@
 #include "log.h"
 #include "pttt_state.h"
 
-using Real = float;
+using Real = double;
 
 struct InfosetMetadata {
   uint32_t legal_actions;

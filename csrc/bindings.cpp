@@ -29,6 +29,7 @@ void register_types(py::module &m, const char *state_name,
                     const char *traverser_name) {
   py::class_<T>(m, state_name)
       .def(py::init())
+      .def("clone", [](T &s) -> T { return s; })
       .def("player",
            [](T &s) -> std::optional<uint8_t> {
              if (!s.is_terminal()) {
