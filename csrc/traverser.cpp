@@ -68,7 +68,7 @@ void compute_gradients_thread(T root,
       std::array<uint32_t, 2> new_seqs = seqs;
 
       uint32_t a = s.available_actions();
-      for (int i = 0; i < 9; ++i, a >>= 1) {
+      for (uint32_t i = 0; a; ++i, a >>= 1) {
         if (a & 1) {
           T ss = s;
           ss.next(i);
@@ -352,14 +352,19 @@ void Traverser<T>::compute_gradients(
 template <typename T>
 EvExpl Traverser<T>::ev_and_exploitability(
     const std::array<const Real *, 2> strategies) {
+  EvExpl out;
+
   INFO("begin exploitability computation...");
   compute_gradients(strategies);
+  out.gradient[0] = gradients[0];
+  out.gradient[1] = gradients[1];
 
   INFO("computing expected value...");
   Real ev0 = 0.0;
   for (uint32_t i = 0; i < treeplex[0].num_infosets() * 9; ++i) {
     ev0 += sf_strategies_[0][i] * gradients[0][i];
   }
+  out.ev0 = ev0;
 
 #ifdef DEBUG
   {
@@ -375,11 +380,9 @@ EvExpl Traverser<T>::ev_and_exploitability(
   }
 #endif
 
-  EvExpl out;
-  out.ev0 = ev0;
   out.expl = {ev0, -ev0};
-  out.best_response[0].resize(treeplex[0].num_infosets() * 9);
-  out.best_response[1].resize(treeplex[1].num_infosets() * 9);
+  out.best_response[0].resize(treeplex[0].num_infosets() * 9, 0.0);
+  out.best_response[1].resize(treeplex[1].num_infosets() * 9, 0.0);
 
   INFO("computing exploitabilities...");
 #pragma omp parallel for

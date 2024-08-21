@@ -11,6 +11,7 @@
 #include "traverser.h"
 
 namespace py = pybind11;
+using NdArray = py::array_t<Real, py::array::c_style>;
 
 namespace {
 std::string infoset_desc(uint64_t key) {
@@ -23,6 +24,24 @@ std::string infoset_desc(uint64_t key) {
   return out;
 }
 } // namespace
+
+struct EvExplPy {
+  Real ev0;
+  std::array<NdArray, 2> gradient;
+  std::array<Real, 2> expl;
+  std::array<NdArray, 2> best_response;
+
+  // NB: allows implicit conversion
+  EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl{ev.expl[0], ev.expl[1]} {
+    for (int p = 0; p < 2; ++p) {
+      gradient[p] = NdArray(std::array<size_t, 2>{ev.gradient[p].size() / 9, 9},
+                            &ev.gradient[p][0]);
+      best_response[p] =
+          NdArray(std::array<size_t, 2>{ev.best_response[p].size() / 9, 9},
+                  &ev.best_response[p][0]);
+    }
+  }
+};
 
 template <typename T>
 void register_types(py::module &m, const char *state_name,
@@ -81,9 +100,8 @@ void register_types(py::module &m, const char *state_name,
       .def(py::init<>())
       .def(
           "ev_and_exploitability",
-          [](Traverser<T> &traverser,
-             py::array_t<Real, py::array::c_style> strat0,
-             py::array_t<Real, py::array::c_style> strat1) -> EvExpl {
+          [](Traverser<T> &traverser, NdArray strat0,
+             NdArray strat1) -> EvExplPy {
             // clang-format off
             CHECK(strat0.ndim() == 2 &&
                       strat0.shape(0) == traverser.treeplex[0].num_infosets() &&
@@ -114,16 +132,15 @@ void register_types(py::module &m, const char *state_name,
              return infoset_desc(key);
            })
       .def("construct_uniform_strategies",
-           [](const Traverser<T> &traverser)
-               -> std::array<py::array_t<Real, py::array::c_style>, 2> {
-             std::array<py::array_t<Real, py::array::c_style>, 2> out;
+           [](const Traverser<T> &traverser) -> std::array<NdArray, 2> {
+             std::array<NdArray, 2> out;
 
              for (int p = 0; p < 2; ++p) {
                const uint32_t rows = traverser.treeplex[p].num_infosets();
                std::valarray<Real> strategy(0.0, rows * 9);
                traverser.treeplex[p].set_uniform(&strategy[0]);
-               out[p] = py::array_t<Real, py::array::c_style>(
-                   std::array<py::ssize_t, 2>{rows, 9}, &strategy[0]);
+               out[p] =
+                   NdArray(std::array<py::ssize_t, 2>{rows, 9}, &strategy[0]);
              }
 
              return out;
@@ -137,28 +154,17 @@ void register_types(py::module &m, const char *state_name,
       .def_property(
           "NUM_INFOS_PL2",
           [](const Traverser<T> &traverser) {
-            return traverser.treeplex[0].num_infosets();
+            return traverser.treeplex[1].num_infosets();
           },
           nullptr);
 }
 
 PYBIND11_MODULE(pydh3, m) {
-  py::class_<EvExpl>(m, "EvExpl")
-      .def_readonly("ev0", &EvExpl::ev0)
-      .def_readonly("expl", &EvExpl::expl)
-      .def_property_readonly(
-          "best_response",
-          [](const EvExpl &ev)
-              -> std::array<py::array_t<Real, py::array::c_style>, 2> {
-            return {py::array_t<Real, py::array::c_style>(
-                        std::array<py::ssize_t, 2>{
-                            ev.best_response[0].size() / 9, 9},
-                        &ev.best_response[0][0]),
-                    py::array_t<Real, py::array::c_style>(
-                        std::array<py::ssize_t, 2>{
-                            ev.best_response[1].size() / 9, 9},
-                        &ev.best_response[1][0])};
-          });
+  py::class_<EvExplPy>(m, "EvExpl")
+      .def_readonly("ev0", &EvExplPy::ev0)
+      .def_readonly("expl", &EvExplPy::expl)
+      .def_readonly("gradient", &EvExplPy::gradient)
+      .def_readonly("best_response", &EvExplPy::best_response);
 
   register_types<DhState<false>>(m, "DhState", "DhTraverser");
   register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser");
