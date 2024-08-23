@@ -18,8 +18,11 @@
 
 int main() {
   INFO("starting dh3 (num threads: %d)", omp_get_max_threads());
+#ifdef DEBUG
+  INFO("DEBUG is defined");
+#endif
 
-  Traverser<DhState<false>> traverser;
+  Traverser<DhState<true>> traverser;
   std::valarray<Real> strategies[2];
 
   strategies[0].resize(traverser.treeplex[0].num_infosets() * 9, 0.0);

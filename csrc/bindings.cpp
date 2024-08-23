@@ -12,6 +12,7 @@
 
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
+using BoolNdArray = py::array_t<bool, py::array::c_style>;
 
 namespace {
 std::string infoset_desc(uint64_t key) {
@@ -94,7 +95,10 @@ void register_types(py::module &m, const char *state_name,
              return infoset_desc(s.get_infoset());
            })
       .def("__str__", &T::to_string)
-      .def("__repr__", &T::to_string);
+      .def("__repr__", &T::to_string)
+      .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
+        return T::OPENSPIEL_INFOSTATE_SIZE;
+      });
 
   py::class_<Traverser<T>>(m, traverser_name)
       .def(py::init<>())
@@ -145,18 +149,28 @@ void register_types(py::module &m, const char *state_name,
 
              return out;
            })
-      .def_property(
-          "NUM_INFOS_PL1",
-          [](const Traverser<T> &traverser) {
-            return traverser.treeplex[0].num_infosets();
-          },
-          nullptr)
-      .def_property(
-          "NUM_INFOS_PL2",
-          [](const Traverser<T> &traverser) {
-            return traverser.treeplex[1].num_infosets();
-          },
-          nullptr);
+      .def("compute_openspiel_infostates",
+           [](const Traverser<T> &traverser, const uint8_t p) -> BoolNdArray {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %u)", p);
+             const uint32_t nrows = traverser.treeplex[p].num_infosets();
+             std::valarray<bool> buf(nrows * T::OPENSPIEL_INFOSTATE_SIZE);
+             traverser.compute_openspiel_infostates(p, &buf[0]);
+             return BoolNdArray(
+                 std::array<py::ssize_t, 2>{nrows, T::OPENSPIEL_INFOSTATE_SIZE},
+                 &buf[0]);
+           })
+      .def_property_readonly("NUM_INFOS_PL0",
+                             [](const Traverser<T> &traverser) {
+                               return traverser.treeplex[0].num_infosets();
+                             })
+      .def_property_readonly("NUM_INFOS_PL1",
+                             [](const Traverser<T> &traverser) {
+                               return traverser.treeplex[1].num_infosets();
+                             })
+      .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
+        return T::OPENSPIEL_INFOSTATE_SIZE;
+      });
 }
 
 PYBIND11_MODULE(pydh3, m) {

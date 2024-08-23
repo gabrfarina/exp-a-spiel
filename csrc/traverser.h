@@ -57,16 +57,15 @@ template <typename T> struct Traverser {
   void compute_gradients(const std::array<const Real *, 2> strategies);
   EvExpl ev_and_exploitability(const std::array<const Real *, 2> strategies);
 
+  // 27 bits
+  // empty mask, pl1 mask, pl2 mask
+  //
+  // + 9 moves: each as a one-hot encoding as 9 bits
+  void compute_openspiel_infostates(const uint8_t player, bool *buf) const;
+
 private:
   std::valarray<Real> bufs_[2][9];
   std::valarray<Real> sf_strategies_[2];
 
-  void compute_sf_strategies_(const std::array<const Real *, 2> strategies) {
-#pragma omp parallel for
-    for (int p = 0; p < 2; ++p) {
-      memcpy(&sf_strategies_[p][0], strategies[p],
-             treeplex[p].num_infosets() * 9 * sizeof(Real));
-      treeplex[p].bh_to_sf(&sf_strategies_[p][0]);
-    }
-  }
+  void compute_sf_strategies_(const std::array<const Real *, 2> strategies);
 };

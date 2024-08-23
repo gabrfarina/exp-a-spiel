@@ -30,6 +30,8 @@ inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
 }
 
 template <bool abrupt> struct PtttState : public BaseState<abrupt> {
+  static constexpr uint32_t OPENSPIEL_INFOSTATE_SIZE = 27 + 81;
+
   uint8_t winner() const {
     const auto &x = this->x;
 

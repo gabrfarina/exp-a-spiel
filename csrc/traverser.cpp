@@ -405,6 +405,44 @@ EvExpl Traverser<T>::ev_and_exploitability(
   return out;
 }
 
+template <typename T>
+void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
+                                                bool *buf) const {
+  CHECK(p == 0 || p == 1, "p must be 0 or 1 (got %u)", p);
+  const uint32_t ncols = 27 + 81;
+  const uint32_t nrows = treeplex[p].num_infosets();
+  memset(buf, 0, nrows * ncols * sizeof(bool));
+
+#pragma omp parallel for
+  for (uint32_t i = 0; i < nrows; ++i) {
+    bool *rowbuf = buf + (i * ncols);
+    uint64_t info = treeplex[p].infoset_keys[i];
+    // Mark all cells as empty
+    memset(rowbuf, 1, 9 * sizeof(bool));
+
+    for (uint32_t j = 0; info; info >>= 5, ++j) {
+      const uint8_t cell = (j >> 1) & 0b1111;
+      const bool placed = j & 1;
+
+      rowbuf[cell] = false;
+      rowbuf[9 + cell] = ((p + placed) % 2 == 0);
+      rowbuf[18 + cell] = ((p + placed) % 2 == 1);
+      rowbuf[27 + 9 * j + cell] = true;
+    }
+  }
+}
+
+template <typename T>
+void Traverser<T>::compute_sf_strategies_(
+    const std::array<const Real *, 2> strategies) {
+#pragma omp parallel for
+  for (int p = 0; p < 2; ++p) {
+    memcpy(&sf_strategies_[p][0], strategies[p],
+           treeplex[p].num_infosets() * 9 * sizeof(Real));
+    treeplex[p].bh_to_sf(&sf_strategies_[p][0]);
+  }
+}
+
 template class Traverser<DhState<false>>;
 template class Traverser<DhState<true>>;
 template class Traverser<PtttState<false>>;
