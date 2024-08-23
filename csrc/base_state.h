@@ -10,9 +10,13 @@
 const uint8_t TIE = 0xee;
 
 template <bool abrupt> struct BaseState {
-  uint8_t x[2][9];
-  uint8_t p; // player
-  uint8_t t[2];
+  uint8_t x[2][9]; // state: 2 players, 9 possible moves each
+  // x[p][i] is 
+  //   0 if player p never played cell i
+  //   otherwise x[p][i] >> 1 indicates the turn on which player p played on cell i
+  //   and x[p][i] & 1 is 1 if player p was first to play cell i, or 0 if the opponent had played cell i before
+  uint8_t p; // player (0 or 1)
+  uint8_t t[2]; // turn
 
   BaseState()
       : x{{0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}}, p{0},
@@ -21,13 +25,14 @@ template <bool abrupt> struct BaseState {
   uint8_t player() const { return p; }
 
   void next(const uint8_t i) {
-    ++t[p];
-    x[p][i] = t[p] << 1;
-    if (x[p ^ 1][i] == 0) {
-      x[p][i] |= 1;
+    // player p moves on cell i
+    ++t[p]; // increment player turn
+    x[p][i] = t[p] << 1; // store player's move (leave 1st bit free for below)
+    if (x[p ^ 1][i] == 0) { // if the opponent hadn't already played on that cell
+      x[p][i] |= 1; // set 1st bit to 1 to indicate that
       if constexpr (!abrupt)
-        p ^= 1;
-    }
+        p ^= 1; // move to next player (unless abrupt then it's handled below)
+    } // otherwise don't move to next player (unless abrupt) because we can play again
     if constexpr (abrupt) {
       // In the abrupt variant, the turn
       // always passes to the opponent.
@@ -45,6 +50,13 @@ template <bool abrupt> struct BaseState {
     return actions;
   }
 
+  // get the infoset for the *current player*
+  // infoset is made up of 64 bits, containing all of the player's t_ moves
+  // each move is encoded over 5 bits as follows:
+  // - the first (rightmost) bit is 1 if the move was successful, or 0 if the opponent had played there before 
+  // - the next 4 bits contain the move, from 1 to 9
+  // the latest move is encoded in the rightmost 5 bits
+  // in total the 5*t_ rightmost bits are used, the others are left to 0
   uint64_t get_infoset() const {
     uint64_t info = 0;
     uint8_t t_ = t[p];
@@ -59,6 +71,7 @@ template <bool abrupt> struct BaseState {
   }
 };
 
+// get total number of moves played so far
 inline uint8_t num_actions(uint64_t infoset) {
   uint8_t actions = 0;
   for (; infoset; ++actions, infoset >>= 5)
@@ -66,7 +79,10 @@ inline uint8_t num_actions(uint64_t infoset) {
   return actions;
 }
 
+// get the infoset one action before (last action = rightmost bits)
 inline uint64_t parent_infoset(const uint64_t infoset) { return infoset >> 5; }
+
+// get the last move (between 0 and 8) that was played
 inline uint8_t parent_action(const uint64_t infoset) {
   return ((infoset >> 1) & 0b1111) - 1;
 }
