@@ -13,6 +13,7 @@
 
 #include "dh_state.h"
 #include "log.h"
+#include "pttt_state.h"
 #include "traverser.h"
 
 int main() {

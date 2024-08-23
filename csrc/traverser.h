@@ -10,7 +10,7 @@
 #include "log.h"
 #include "pttt_state.h"
 
-using Real = float;
+using Real = double;
 
 struct InfosetMetadata {
   uint32_t legal_actions;
@@ -36,12 +36,17 @@ struct Treeplex {
   void validate_strategy(const Real *buf) const;
   void set_uniform(Real *buf) const;
   void bh_to_sf(Real *buf) const;
-  Real br_value(Real *buf) const;
+  Real br(Real *grad, Real *strat = nullptr) const;
 };
 
 struct EvExpl {
   Real ev0;
+  // gradient of utility wrt the player strategies
+  std::array<std::valarray<Real>, 2> gradient;
+  // expl[0] is how exploitable player 0 is by a best-responding player 1
   std::array<Real, 2> expl;
+  // best_response[0] is the best response to player 1's strategy
+  std::array<std::valarray<Real>, 2> best_response;
 };
 
 template <typename T> struct Traverser {

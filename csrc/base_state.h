@@ -80,10 +80,14 @@ inline uint8_t num_actions(uint64_t infoset) {
 }
 
 // get the infoset one action before (last action = rightmost bits)
-inline uint64_t parent_infoset(const uint64_t infoset) { return infoset >> 5; }
+inline uint64_t parent_infoset(const uint64_t infoset) {
+  assert(infoset);
+  return infoset >> 5;
+}
 
 // get the last move (between 0 and 8) that was played
 inline uint8_t parent_action(const uint64_t infoset) {
+  assert(infoset);
   return ((infoset >> 1) & 0b1111) - 1;
 }
 
