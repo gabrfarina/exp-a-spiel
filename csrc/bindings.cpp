@@ -94,6 +94,18 @@ void register_types(py::module &m, const char *state_name,
            [](const T &s) -> std::string {
              return infoset_desc(s.get_infoset());
            })
+      .def("infoset",
+           [](const T &s) -> uint64_t {
+             return s.get_infoset();
+           })
+      .def("compute_openspiel_infostate",
+           [](const T &s) -> BoolNdArray {
+             std::valarray<bool> buf(T::OPENSPIEL_INFOSTATE_SIZE);
+             s.compute_openspiel_infostate(&buf[0]);
+             return BoolNdArray(
+                 std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
+                 &buf[0]);
+           })
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string)
       .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
