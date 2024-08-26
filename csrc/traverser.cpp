@@ -417,17 +417,21 @@ void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
   for (uint32_t i = 0; i < nrows; ++i) {
     bool *rowbuf = buf + (i * ncols);
     uint64_t info = treeplex[p].infoset_keys[i];
-    // Mark all cells as empty
+    // Count total number of moves
+    uint8_t n_actions = 0;
+    for (; info; ++n_actions, info >>= 5) {}
+    info = treeplex[p].infoset_keys[i];
+    // Mark first 9 cells as empty
     memset(rowbuf, 1, 9 * sizeof(bool));
-
     for (uint32_t j = 0; info; info >>= 5, ++j) {
-      const uint8_t cell = (j >> 1) & 0b1111;
-      const bool placed = j & 1;
+      const uint8_t cell = ((info >> 1) & 0b1111) - 1;
+      const bool placed = info & 1;
 
       rowbuf[cell] = false;
-      rowbuf[9 + cell] = ((p + placed) % 2 == 0);
-      rowbuf[18 + cell] = ((p + placed) % 2 == 1);
-      rowbuf[27 + 9 * j + cell] = true;
+      rowbuf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
+      rowbuf[18 + cell] = ((p + placed) % 2 == 1);  // p0 moves
+      // we are reading moves from latest to oldest, and we want to store moves from oldest to latest
+      rowbuf[27 + 9 * (n_actions - j - 1) + cell] = true;
     }
   }
 }
