@@ -1,8 +1,7 @@
 #pragma once
 #include <array>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
-#include <cstring>
-#include <unordered_map>
 #include <valarray>
 #include <vector>
 
@@ -23,7 +22,7 @@ struct InfosetMetadata {
 };
 
 // Maps from infoset to legal action mask
-using InfosetMap = std::unordered_map<uint64_t, InfosetMetadata>;
+using InfosetMap = boost::unordered_flat_map<uint64_t, InfosetMetadata>;
 
 struct Treeplex {
   InfosetMap infosets;
