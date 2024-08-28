@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.29)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
@@ -8,7 +8,7 @@ project(
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS "-fopenmp -Wall -Wextra -Wfatal-errors -march=native -fPIC")
-
+cmake_policy(SET CMP0167 NEW)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_DEBUG -DDEBUG -O2 -g -fsanitize=address")
 else()
