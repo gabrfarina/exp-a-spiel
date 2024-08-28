@@ -1,8 +1,9 @@
-#include <cstdint>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <sys/types.h>
+
+#include <cstdint>
 #include <valarray>
 
 #include "dh_state.h"
@@ -23,7 +24,7 @@ std::string infoset_desc(uint64_t key) {
   reverse(out.begin(), out.end());
   return out;
 }
-} // namespace
+}  // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -98,11 +99,10 @@ void register_types(py::module &m, const char *state_name,
 
   py::class_<Traverser<T>>(m, traverser_name)
       .def(py::init<>())
-      .def(
-          "ev_and_exploitability",
-          [](Traverser<T> &traverser, NdArray strat0,
-             NdArray strat1) -> EvExplPy {
-            // clang-format off
+      .def("ev_and_exploitability",
+           [](Traverser<T> &traverser, NdArray strat0,
+              NdArray strat1) -> EvExplPy {
+             // clang-format off
             CHECK(strat0.ndim() == 2 &&
                       strat0.shape(0) == traverser.treeplex[0].num_infosets() &&
                       strat0.shape(1) == 9,
@@ -115,11 +115,11 @@ void register_types(py::module &m, const char *state_name,
                   "Invalid shape for Player 2's strategy. Must be (%d, 9); (%lu, %lu)",
                   traverser.treeplex[1].num_infosets(), strat1.shape(0),
                   strat1.shape(1));
-            // clang-format on
+             // clang-format on
 
-            return traverser.ev_and_exploitability(
-                {strat0.data(), strat1.data()});
-          })
+             return traverser.ev_and_exploitability(
+                 {strat0.data(), strat1.data()});
+           })
       .def("infoset_desc",
            [](const Traverser<T> &traverser, const uint8_t p,
               const uint32_t row) -> std::string {
@@ -144,6 +144,17 @@ void register_types(py::module &m, const char *state_name,
              }
 
              return out;
+           })
+      .def("parent_index_and_action",
+           [](const Traverser<T> &traverser, const uint8_t p,
+              const uint32_t row) {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %d)", p);
+             CHECK(row < traverser.treeplex[p].num_infosets(),
+                   "Invalid row (expected < %d; found %d)",
+                   traverser.treeplex[p].num_infosets(), row);
+             const auto key = traverser.treeplex[p].infoset_keys.at(row);
+             return std::make_pair(traverser.treeplex[p].parent_index.at(row), parent_action(key));
            })
       .def_property(
           "NUM_INFOS_PL1",
