@@ -7,6 +7,11 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(pybind11 CONFIG REQUIRED)
+find_package(Boost CONFIG REQUIRED)
+
 set(CMAKE_CXX_FLAGS "-fopenmp -Wall -Wextra -Wfatal-errors -march=native -fPIC")
 cmake_policy(SET CMP0167 NEW)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -14,7 +19,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDEBUG -Ofast -g -fvisibility=hidden")
 endif()
-find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-find_package(pybind11 CONFIG REQUIRED)
-find_package(Boost CONFIG REQUIRED)
+
+
 add_subdirectory(csrc)

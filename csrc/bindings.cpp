@@ -24,7 +24,7 @@ std::string infoset_desc(uint64_t key) {
   reverse(out.begin(), out.end());
   return out;
 }
-}  // namespace
+}// namespace
 
 struct EvExplPy {
   Real ev0;
@@ -49,13 +49,12 @@ struct CFRBufferPy {
   std::array<Real, 2> avg_denom, ev;
   std::array<size_t, 2> l, iter;
 
-  CFRBufferPy(std::array<size_t, 2> l) :avg_denom{1, 1}, ev{0, 0}, l(l), iter{0, 0}  {
-    for (int p = 0; p < 2; ++p) {
-      regrets[p] = NdArray(std::array<size_t, 2>{l[p], 9});
-      avg_sf[p] = NdArray(std::array<size_t, 2>{l[p], 9});
-      bh[p] = NdArray(std::array<size_t, 2>{l[p], 9});
-      sf[p] = NdArray(std::array<size_t, 2>{l[p], 9});
-    }
+  CFRBufferPy(std::array<size_t, 2> l) : regrets{NdArray(std::array<size_t, 2>{l[0], 9}), NdArray(std::array<size_t, 2>{l[1], 9})},
+                                         avg_sf{NdArray(std::array<size_t, 2>{l[0], 9}), NdArray(std::array<size_t, 2>{l[1], 9})},
+                                         bh{NdArray(std::array<size_t, 2>{l[0], 9}), NdArray(std::array<size_t, 2>{l[1], 9})},
+                                         sf{NdArray(std::array<size_t, 2>{l[0], 9}), NdArray(std::array<size_t, 2>{l[1], 9})},
+                                         avg_bh{NdArray(std::array<size_t, 2>{l[0], 9}), NdArray(std::array<size_t, 2>{l[1], 9})},
+                                         avg_denom{1, 1}, ev{0, 0}, l(l), iter{0, 0} {
   }
   CFRBuffer to_cfr_buffer() {
     CFRBuffer buf{
@@ -72,7 +71,7 @@ struct CFRBufferPy {
     return buf;
   }
   void from_cfr_buffer(const CFRBuffer &buf) {
-    for (int p = 0; p < 2; ++p){
+    for (int p = 0; p < 2; ++p) {
       l[p] = buf.l[p];
       iter[p] = buf.iter[p];
       avg_denom[p] = buf.avg_denom[p];
@@ -81,7 +80,7 @@ struct CFRBufferPy {
   }
 };
 
-template <typename T>
+template<typename T>
 void register_types(py::module &m, const char *state_name,
                     const char *traverser_name) {
   py::class_<T>(m, state_name)
@@ -160,18 +159,18 @@ void register_types(py::module &m, const char *state_name,
       .def("init_cfr",
            [](Traverser<T> &traverser) -> CFRBufferPy {
              auto x = CFRBufferPy({traverser.treeplex[0].num_infosets(),
-                                 traverser.treeplex[1].num_infosets()});
+                                   traverser.treeplex[1].num_infosets()});
              traverser.init_cfr(x.to_cfr_buffer());
              return x;
            })
       .def("update_cfr",
-           [](Traverser<T> &traverser, const CFRConf &conf, int p, CFRBufferPy& buf) {
+           [](Traverser<T> &traverser, const CFRConf &conf, int p, CFRBufferPy &buf) {
              CFRBuffer x = buf.to_cfr_buffer();
              traverser.update_cfr(
                  conf,
-                 p, 
+                 p,
                  x);
-            buf.from_cfr_buffer(x);
+             buf.from_cfr_buffer(x);
            })
       .def("infoset_desc",
            [](const Traverser<T> &traverser, const uint8_t p,
@@ -231,20 +230,20 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readonly("gradient", &EvExplPy::gradient)
       .def_readonly("best_response", &EvExplPy::best_response);
   py::class_<CFRBufferPy>(m, "CFRBuffer")
-    .def_readonly("regrets", &CFRBufferPy::regrets)
-    .def_readonly("avg_sf", &CFRBufferPy::avg_sf)
-    .def_readonly("bh", &CFRBufferPy::bh)
-    .def_readonly("sf", &CFRBufferPy::sf)
-    .def_readonly("avg_bh", &CFRBufferPy::avg_bh)
-    .def_readonly("avg_denom", &CFRBufferPy::avg_denom)
-    .def_readonly("ev", &CFRBufferPy::ev)
-    .def_readonly("l", &CFRBufferPy::l)
-    .def_readonly("iter", &CFRBufferPy::iter);
+      .def_readonly("regrets", &CFRBufferPy::regrets)
+      .def_readonly("avg_sf", &CFRBufferPy::avg_sf)
+      .def_readonly("bh", &CFRBufferPy::bh)
+      .def_readonly("sf", &CFRBufferPy::sf)
+      .def_readonly("avg_bh", &CFRBufferPy::avg_bh)
+      .def_readonly("avg_denom", &CFRBufferPy::avg_denom)
+      .def_readonly("ev", &CFRBufferPy::ev)
+      .def_readonly("l", &CFRBufferPy::l)
+      .def_readonly("iter", &CFRBufferPy::iter);
   py::class_<CFRConf>(m, "CfrConf")
-    .def(py::init())
-    .def_readwrite("pos_discount", &CFRConf::pos_discount)
-    .def_readwrite("neg_discount", &CFRConf::neg_discount)
-    .def_readwrite("linear", &CFRConf::linear);
+      .def(py::init())
+      .def_readwrite("pos_discount", &CFRConf::pos_discount)
+      .def_readwrite("neg_discount", &CFRConf::neg_discount)
+      .def_readwrite("linear", &CFRConf::linear);
   register_types<DhState<false>>(m, "DhState", "DhTraverser");
   register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser");
   register_types<PtttState<false>>(m, "PtttState", "PtttTraverser");

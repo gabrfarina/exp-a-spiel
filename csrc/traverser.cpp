@@ -1,5 +1,6 @@
 #include "traverser.h"
 
+#include <cstring>
 #include <omp.h>
 
 #include <algorithm>
@@ -479,27 +480,42 @@ template <typename T>
 void Traverser<T>::init_cfr(CFRBuffer buf) {
   for (int p = 0; p < 2; ++p) {
     treeplex[p].set_uniform(buf.bh[p]);
+    
     std::copy(buf.bh[p], buf.bh[p] + treeplex[p].num_infosets() * 9,
               buf.avg_sf[p]);
+
+    std::copy(buf.bh[p], buf.bh[p] + treeplex[p].num_infosets() * 9,
+              buf.avg_bh[p]);
+
+  
     treeplex[p].bh_to_sf(buf.avg_sf[p]);
+    std::copy(buf.avg_sf[p], buf.avg_sf[p] + treeplex[p].num_infosets() * 9,
+              buf.sf[p]);
+              
     std::fill(buf.regrets[p], buf.regrets[p] + treeplex[p].num_infosets() * 9,
               0.0);
     buf.avg_denom[p] = 1.0;
   }
 }
+
 template <typename T>
 void Traverser<T>::update_cfr(const CFRConf &conf, int p, CFRBuffer buf) {
   this->compute_gradients({buf.bh[0], buf.bh[1]});
 
   buf.ev[p] = treeplex[p].cfr(&gradients[p][0], buf.regrets[p], buf.bh[p]);
+  treeplex[p].validate_vector(buf.bh[p]);
+
   std::copy(buf.bh[p], buf.bh[p] + treeplex[p].num_infosets() * 9, buf.sf[p]);
   treeplex[p].bh_to_sf(buf.sf[p]);
+  treeplex[p].validate_vector(buf.sf[p]);
+
   Real alpha = 1;
   if (conf.linear) alpha = buf.iter[p] + 2;  // at iter 0 we want alpha to be 2
   buf.avg_denom[p] += alpha;
   alpha /= buf.avg_denom[p];
   for (uint32_t i = 0; i < treeplex[p].num_infosets() * 9; ++i) {
     buf.avg_sf[p][i] = alpha * buf.sf[p][i] + (1 - alpha) * buf.avg_sf[p][i];
+
   }
   std::copy(buf.avg_sf[p], buf.avg_sf[p] + treeplex[p].num_infosets() * 9,
             buf.avg_bh[p]);
@@ -512,7 +528,7 @@ void Traverser<T>::update_cfr(const CFRConf &conf, int p, CFRBuffer buf) {
 
   treeplex[p].validate_vector(buf.bh[p]);
   treeplex[p].validate_vector(buf.avg_bh[p]);
-  treeplex[p].validate_vector(buf.sf[p]);
+  
   treeplex[p].validate_vector(buf.avg_sf[p]);
 
   ++buf.iter[p];

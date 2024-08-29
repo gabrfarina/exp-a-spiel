@@ -40,12 +40,14 @@ pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
 
+
 [tool.pixi.pypi-dependencies]
 dh3 = { path = ".", editable = true }
 
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
 pytest = "*"
+gdb = ">=15.1,<16"
 
 [tool.pixi.environments]
 default = {features = ["dev"]}
