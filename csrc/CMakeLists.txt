@@ -1,4 +1,4 @@
-add_library(traverser traverser.cpp)
+add_library(traverser traverser.cpp averager.cpp cfr.cpp)
 target_include_directories(traverser PUBLIC ${Boost_INCLUDE_DIRS})
 
 add_executable(dh3 dh3.cpp)

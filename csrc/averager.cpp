@@ -1,0 +1,29 @@
+#include "averager.h"
+#include "traverser.h"
+
+Averager::Averager(std::shared_ptr<Treeplex> treeplex)
+    : treeplex_(treeplex), sum_weights_(0.0), sf_(treeplex->num_infosets() * 9),
+      buf_(treeplex->num_infosets() * 9) {}
+
+void Averager::push(ConstRealBuf strategy, const Real weight) {
+  CHECK(strategy.size() == sf_.size(), "Strategy size mismatch");
+  CHECK(weight >= 0.0, "Averaging weight must be nonnegative (found: %f)",
+        weight);
+
+  treeplex_->validate_strategy(strategy);
+
+  sum_weights_ += weight;
+  auto alpha = weight / sum_weights_;
+  std::copy(strategy.begin(), strategy.end(), std::begin(buf_));
+  treeplex_->bh_to_sf(buf_);
+  buf_ *= alpha;
+  sf_ *= 1.0 - alpha;
+  sf_ += buf_;
+}
+
+std::valarray<Real> Averager::running_avg() const {
+  CHECK(sum_weights_ > 0.0, "No data to average");
+  std::valarray<Real> out = sf_;
+  treeplex_->sf_to_bh(out);
+  return out;
+}
