@@ -49,7 +49,8 @@ struct Treeplex {
   void bh_to_sf(Real *buf) const;
   void sf_to_bh(Real *buf) const;
   Real br(Real *grad, Real *strat = nullptr) const;
-  Real cfr(Real *grad, Real *regrets, Real *strat) const;
+  Real cfr(Real *grad, Real *regrets, const Real *strat) const;
+  void regret_to_bh(Real *buf) const;
 };
 
 struct EvExpl {

@@ -53,10 +53,11 @@ gdb = ">=15.1,<16"
 default = {features = ["dev"]}
 
 [tool.scikit-build]
+build-dir = "./build"
+build.targets = ["pydh3"]
+build.verbose = true
+editable.rebuild = true
+logging.level = "INFO"
 wheel.expand-macos-universal-tags = true
 wheel.license-files = []
 wheel.packages = ["csrc/dh3"]
-editable.rebuild = true
-build.verbose = true
-build.targets = ["pydh3"]
-build-dir = "./build"
