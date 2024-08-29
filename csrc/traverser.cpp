@@ -216,6 +216,7 @@ Real Treeplex::br(Real *buf, Real *strat) const {
   return max_val;
 }
 constexpr Real cfr_eps = 0;
+constexpr Real cfr_min_s = 1e-6;
 Real Treeplex::cfr(Real *buf, Real *regrets, const Real *strat) const {
 #ifdef DEBUG
   validate_strategy(strat);
@@ -272,11 +273,14 @@ void Treeplex::regret_to_bh(Real *buf) const {
       s += x;
       buf[i * 9 + j] = x;
     }
-    #ifdef DEBUG
-    CHECK(a > 0, "legal actions must be positive was %d", a);
-    CHECK(s > 0, "s must be positive, was %f", s);
-    CHECK(std::isfinite(s) > 0, "s must be finite, was %f", s);
-    #endif
+    if (s < cfr_min_s) {
+      s = 0;
+      for (uint32_t j = 0; j < 9; ++j) {
+        const auto x = a & (1 << j);
+        buf[i * 9 + j] = x;
+        s += x;
+      }
+    } 
     for (uint32_t j = 0; j < 9; ++j) {
       buf[i * 9 + j] /= s;
     }
