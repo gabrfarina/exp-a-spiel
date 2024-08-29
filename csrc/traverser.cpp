@@ -534,7 +534,7 @@ void Traverser<T>::update_cfr(const CFRConf &conf, int p, CFRBuffer buf) {
 
 #ifdef DEBUG
   treeplex[p].validate_strategy(buf.bh[p]);
-  treeplex[p].validate_strategy(buf.sf[p]);
+  treeplex[p].validate_vector(buf.sf[p]);
   treeplex[p].validate_vector(buf.sf[p]);
 #endif
 
