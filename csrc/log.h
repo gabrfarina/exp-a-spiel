@@ -59,6 +59,6 @@ void _PrintMsSinceEpoch() {
 
 #define CHECK(CONDITION, ...)                                                  \
   {                                                                            \
-    if (!(CONDITION))                                                          \
+    if (!(CONDITION))[[unlikely]] 	                                           \
       FATAL(__VA_ARGS__)                                                       \
   }
