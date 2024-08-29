@@ -1,10 +1,12 @@
+#include "traverser.h"
+
+#include <omp.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <limits>
-#include <omp.h>
 
 #include "log.h"
-#include "traverser.h"
 
 using std::size_t;
 
@@ -52,8 +54,8 @@ void compute_gradients_thread(T root,
                               const Treeplex *treeplex,
                               std::array<const Real *, 2> sf_strategies,
                               std::array<Real *, 2> gradients) {
-  std::tuple<T,                      // Current state
-             std::array<uint32_t, 2> // Parent seqs
+  std::tuple<T,                       // Current state
+             std::array<uint32_t, 2>  // Parent seqs
              >
       stack[100];
   stack[0] = {root, init_parent_seqs};
@@ -81,13 +83,13 @@ void compute_gradients_thread(T root,
         }
       }
     } else if (w == 0 || w == 1) {
-      const Real sign = -2.0 * w + 1.0; // 1 if w == 0 else -1
+      const Real sign = -2.0 * w + 1.0;  // 1 if w == 0 else -1
       gradients[0][seqs[0]] += sign * sf_strategies[1][seqs[1]];
       gradients[1][seqs[1]] -= sign * sf_strategies[0][seqs[0]];
     }
   }
 }
-} // namespace
+}  // namespace
 
 void Treeplex::validate_vector(const Real *buf) const {
   for (const auto &it : infosets) {
@@ -157,6 +159,24 @@ void Treeplex::bh_to_sf(Real *buf) const {
 #endif
 }
 
+constexpr Real bh_eps = 1e-6;
+void Treeplex::sf_to_bh(Real *buf) const {
+#ifdef DEBUG
+  validate_vector(buf);
+#endif
+  for (const auto &it : infosets) {
+    const uint32_t i = it.second.infoset_id;
+    const uint32_t a = it.second.legal_actions;
+    Real s = 0;
+    for (uint32_t j = 0; j < 9; ++j) {
+      s += (buf[i * 9 + j] + bh_eps) * (a & (1 << j));
+    }
+    for (uint32_t j = 0; j < 9; ++j) {
+      buf[i * 9 + j] = (buf[i * 9 + j] + bh_eps) / s * (a & (1 << j));
+    }
+  }
+}
+
 Real Treeplex::br(Real *buf, Real *strat) const {
   if (strat) {
     memset(strat, 0, num_infosets() * 9 * sizeof(Real));
@@ -193,8 +213,59 @@ Real Treeplex::br(Real *buf, Real *strat) const {
 
   return max_val;
 }
+constexpr Real cfr_eps = 0;
+Real Treeplex::cfr(Real *buf, Real *regrets, Real *strat) const {
+  if (strat) {
+    memset(strat, 0, num_infosets() * 9 * sizeof(Real));
+  }
 
-template <typename T> Traverser<T>::Traverser() {
+#ifdef DEBUG
+  validate_vector(buf);
+#endif
+
+  Real denom = 0;
+  Real ev = 0;
+  for (int32_t i = num_infosets() - 1; i >= 0; --i) {
+    const uint64_t info = infoset_keys[i];
+    const uint32_t mask = legal_actions[i];
+
+    Real max_val = std::numeric_limits<Real>::lowest();
+
+    for (uint32_t j = 0; j < 9; ++j) {
+      if ((mask & (1 << j)) && (buf[i * 9 + j] > max_val)) {
+        max_val = buf[i * 9 + j];
+      }
+    }
+
+    ev = 0;
+    denom = 0;
+    for (uint32_t j = 0; j < 9; ++j) {
+      if (mask & (1 << j)) {
+        ev += buf[i * 9 + j] * strat[i * 9 + j];
+        regrets[i * 9 + j] += buf[i * 9 + j] - max_val;
+        denom += std::max<Real>(0, regrets[i * 9 + j]) + cfr_eps;
+      }
+    }
+
+    if (i) {
+      const uint32_t parent = parent_index[i];
+      const uint32_t parent_a = parent_action(info);
+      buf[parent * 9 + parent_a] += ev;
+    }
+
+    for (uint32_t j = 0; j < 9; ++j) {
+      if (mask & (1 << j)) {
+        strat[i * 9 + j] =
+            (std::max<Real>(0, regrets[i * 9 + j]) + cfr_eps) / denom;
+      }
+    }
+  }
+
+  return ev;
+}
+
+template <typename T>
+Traverser<T>::Traverser() {
   treeplex[0].infosets.reserve(5000000);
   treeplex[1].infosets.reserve(5000000);
 
@@ -327,9 +398,9 @@ void Traverser<T>::compute_gradients(
   for (unsigned i = 0; i < 9 * 9; ++i) {
     T s{};
     assert(!s.get_infoset());
-    s.next(i % 9); // pl1's move
+    s.next(i % 9);  // pl1's move
     assert(!s.get_infoset());
-    s.next(i / 9); // pl2's move
+    s.next(i / 9);  // pl2's move
 
     const std::array<uint32_t, 2> parent_seqs = {i % 9, i / 9};
     const std::array<Real *, 2> thread_gradients = {&bufs_[0][i / 9][0],
@@ -351,8 +422,7 @@ void Traverser<T>::compute_gradients(
 
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    for (int j = 0; j < 9; ++j)
-      gradients[p] += bufs_[p][j];
+    for (int j = 0; j < 9; ++j) gradients[p] += bufs_[p][j];
   }
 
   INFO("... all done.");
@@ -405,7 +475,49 @@ EvExpl Traverser<T>::ev_and_exploitability(
   return out;
 }
 
-template class Traverser<DhState<false>>;
-template class Traverser<DhState<true>>;
-template class Traverser<PtttState<false>>;
-template class Traverser<PtttState<true>>;
+template <typename T>
+void Traverser<T>::init_cfr(CFRBuffer buf) {
+  for (int p = 0; p < 2; ++p) {
+    treeplex[p].set_uniform(buf.bh[p]);
+    std::copy(buf.bh[p], buf.bh[p] + treeplex[p].num_infosets() * 9,
+              buf.avg_sf[p]);
+    treeplex[p].bh_to_sf(buf.avg_sf[p]);
+    std::fill(buf.regrets[p], buf.regrets[p] + treeplex[p].num_infosets() * 9,
+              0.0);
+    buf.avg_denom[p] = 1.0;
+  }
+}
+template <typename T>
+void Traverser<T>::update_cfr(const CFRConf &conf, int p, CFRBuffer buf) {
+  this->compute_gradients({buf.bh[0], buf.bh[1]});
+
+  buf.ev[p] = treeplex[p].cfr(&gradients[p][0], buf.regrets[p], buf.bh[p]);
+  std::copy(buf.bh[p], buf.bh[p] + treeplex[p].num_infosets() * 9, buf.sf[p]);
+  treeplex[p].bh_to_sf(buf.sf[p]);
+  Real alpha = 1;
+  if (conf.linear) alpha = buf.iter[p] + 2;  // at iter 0 we want alpha to be 2
+  buf.avg_denom[p] += alpha;
+  alpha /= buf.avg_denom[p];
+  for (uint32_t i = 0; i < treeplex[p].num_infosets() * 9; ++i) {
+    buf.avg_sf[p][i] = alpha * buf.sf[p][i] + (1 - alpha) * buf.avg_sf[p][i];
+  }
+  std::copy(buf.avg_sf[p], buf.avg_sf[p] + treeplex[p].num_infosets() * 9,
+            buf.avg_bh[p]);
+  treeplex[p].sf_to_bh(buf.avg_bh[p]);
+  for (uint32_t i = 0; i < treeplex[p].num_infosets() * 9; ++i) {
+    buf.regrets[p][i] = buf.regrets[p][i] > 0
+                            ? buf.regrets[p][i] * conf.pos_discount
+                            : buf.regrets[p][i] * conf.neg_discount;
+  }
+
+  treeplex[p].validate_vector(buf.bh[p]);
+  treeplex[p].validate_vector(buf.avg_bh[p]);
+  treeplex[p].validate_vector(buf.sf[p]);
+  treeplex[p].validate_vector(buf.avg_sf[p]);
+
+  ++buf.iter[p];
+}
+template struct Traverser<DhState<false>>;
+template struct Traverser<DhState<true>>;
+template struct Traverser<PtttState<false>>;
+template struct Traverser<PtttState<true>>;

@@ -44,6 +44,43 @@ struct EvExplPy {
   }
 };
 
+struct CFRBufferPy {
+  std::array<NdArray, 2> regrets, avg_sf, bh, sf, avg_bh;
+  std::array<Real, 2> avg_denom, ev;
+  std::array<size_t, 2> l, iter;
+
+  CFRBufferPy(std::array<size_t, 2> l) :avg_denom{1, 1}, ev{0, 0}, l(l), iter{0, 0}  {
+    for (int p = 0; p < 2; ++p) {
+      regrets[p] = NdArray(std::array<size_t, 2>{l[p], 9});
+      avg_sf[p] = NdArray(std::array<size_t, 2>{l[p], 9});
+      bh[p] = NdArray(std::array<size_t, 2>{l[p], 9});
+      sf[p] = NdArray(std::array<size_t, 2>{l[p], 9});
+    }
+  }
+  CFRBuffer to_cfr_buffer() {
+    CFRBuffer buf{
+        .l = l,
+        .iter = iter,
+        .avg_denom = avg_denom,
+        .ev = ev,
+        .regrets = {regrets[0].mutable_data(), regrets[1].mutable_data()},
+        .avg_sf = {avg_sf[0].mutable_data(), avg_sf[1].mutable_data()},
+        .bh = {bh[0].mutable_data(), bh[1].mutable_data()},
+        .sf = {sf[0].mutable_data(), sf[1].mutable_data()},
+        .avg_bh = {avg_bh[0].mutable_data(), avg_bh[1].mutable_data()},
+    };
+    return buf;
+  }
+  void from_cfr_buffer(const CFRBuffer &buf) {
+    for (int p = 0; p < 2; ++p){
+      l[p] = buf.l[p];
+      iter[p] = buf.iter[p];
+      avg_denom[p] = buf.avg_denom[p];
+      ev[p] = buf.ev[p];
+    }
+  }
+};
+
 template <typename T>
 void register_types(py::module &m, const char *state_name,
                     const char *traverser_name) {
@@ -120,6 +157,22 @@ void register_types(py::module &m, const char *state_name,
              return traverser.ev_and_exploitability(
                  {strat0.data(), strat1.data()});
            })
+      .def("init_cfr",
+           [](Traverser<T> &traverser) -> CFRBufferPy {
+             auto x = CFRBufferPy({traverser.treeplex[0].num_infosets(),
+                                 traverser.treeplex[1].num_infosets()});
+             traverser.init_cfr(x.to_cfr_buffer());
+             return x;
+           })
+      .def("update_cfr",
+           [](Traverser<T> &traverser, const CFRConf &conf, int p, CFRBufferPy& buf) {
+             CFRBuffer x = buf.to_cfr_buffer();
+             traverser.update_cfr(
+                 conf,
+                 p, 
+                 x);
+            buf.from_cfr_buffer(x);
+           })
       .def("infoset_desc",
            [](const Traverser<T> &traverser, const uint8_t p,
               const uint32_t row) -> std::string {
@@ -154,7 +207,8 @@ void register_types(py::module &m, const char *state_name,
                    "Invalid row (expected < %d; found %d)",
                    traverser.treeplex[p].num_infosets(), row);
              const auto key = traverser.treeplex[p].infoset_keys.at(row);
-             return std::make_pair(traverser.treeplex[p].parent_index.at(row), parent_action(key));
+             return std::make_pair(traverser.treeplex[p].parent_index.at(row),
+                                   parent_action(key));
            })
       .def_property(
           "NUM_INFOS_PL1",
@@ -176,7 +230,21 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readonly("expl", &EvExplPy::expl)
       .def_readonly("gradient", &EvExplPy::gradient)
       .def_readonly("best_response", &EvExplPy::best_response);
-
+  py::class_<CFRBufferPy>(m, "CFRBuffer")
+    .def_readonly("regrets", &CFRBufferPy::regrets)
+    .def_readonly("avg_sf", &CFRBufferPy::avg_sf)
+    .def_readonly("bh", &CFRBufferPy::bh)
+    .def_readonly("sf", &CFRBufferPy::sf)
+    .def_readonly("avg_bh", &CFRBufferPy::avg_bh)
+    .def_readonly("avg_denom", &CFRBufferPy::avg_denom)
+    .def_readonly("ev", &CFRBufferPy::ev)
+    .def_readonly("l", &CFRBufferPy::l)
+    .def_readonly("iter", &CFRBufferPy::iter);
+  py::class_<CFRConf>(m, "CfrConf")
+    .def(py::init())
+    .def_readwrite("pos_discount", &CFRConf::pos_discount)
+    .def_readwrite("neg_discount", &CFRConf::neg_discount)
+    .def_readwrite("linear", &CFRConf::linear);
   register_types<DhState<false>>(m, "DhState", "DhTraverser");
   register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser");
   register_types<PtttState<false>>(m, "PtttState", "PtttTraverser");

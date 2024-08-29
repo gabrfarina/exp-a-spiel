@@ -9,6 +9,7 @@
 #include "log.h"
 #include "pttt_state.h"
 
+
 using Real = double;
 
 struct InfosetMetadata {
@@ -23,7 +24,18 @@ struct InfosetMetadata {
 
 // Maps from infoset to legal action mask
 using InfosetMap = boost::unordered_flat_map<uint64_t, InfosetMetadata>;
+// using InfosetMap =ankerl::unordered_dense::map<uint64_t, InfosetMetadata>;
+struct CFRBuffer {
+  std::array<size_t, 2> l, iter;
+  std::array<Real, 2> avg_denom, ev;
+  std::array<Real*, 2> regrets, avg_sf, bh, sf, avg_bh;
+};
 
+struct CFRConf {
+  Real pos_discount = 1;
+  Real neg_discount = 0.5;
+  bool linear = true;
+};
 struct Treeplex {
   InfosetMap infosets;
   std::vector<uint64_t> infoset_keys;
@@ -35,7 +47,9 @@ struct Treeplex {
   void validate_strategy(const Real *buf) const;
   void set_uniform(Real *buf) const;
   void bh_to_sf(Real *buf) const;
+  void sf_to_bh(Real *buf) const;
   Real br(Real *grad, Real *strat = nullptr) const;
+  Real cfr(Real *grad, Real *regrets, Real *strat) const;
 };
 
 struct EvExpl {
@@ -48,6 +62,9 @@ struct EvExpl {
   std::array<std::valarray<Real>, 2> best_response;
 };
 
+
+
+
 template <typename T> struct Traverser {
   Treeplex treeplex[2];
   std::valarray<Real> gradients[2];
@@ -55,7 +72,8 @@ template <typename T> struct Traverser {
   Traverser();
   void compute_gradients(const std::array<const Real *, 2> strategies);
   EvExpl ev_and_exploitability(const std::array<const Real *, 2> strategies);
-
+  void init_cfr(CFRBuffer buf);
+  void update_cfr(const CFRConf &conf, int p, CFRBuffer buf);
 private:
   std::valarray<Real> bufs_[2][9];
   std::valarray<Real> sf_strategies_[2];
