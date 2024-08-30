@@ -12,10 +12,10 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
           std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
           std::valarray<Real>(0., traverser_->treeplex[1]->num_infosets() * 9)},
       bh_{regrets_} {
-  traverser_->treeplex[0]->set_uniform(bh_[0]);
-  traverser_->treeplex[1]->set_uniform(bh_[1]);
-  averagers_[0].push(bh_[0], 1);
-  averagers_[1].push(bh_[1], 1);
+  for (auto p : {0, 1}){
+    traverser_->treeplex[p]->set_uniform(bh_[p]);
+    averagers_[p].push(bh_[p], 1);
+  }
 }
 
 template <typename T> void CfrSolver<T>::step() {
