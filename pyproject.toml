@@ -39,7 +39,7 @@ pip = "*"
 pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
-
+pybind11-stubgen = "*"
 
 [tool.pixi.pypi-dependencies]
 dh3 = { path = ".", editable = true }
@@ -54,8 +54,8 @@ default = {features = ["dev"]}
 
 [tool.scikit-build]
 build-dir = "./build"
-build.targets = ["pydh3"]
-build.verbose = true
+cmake.targets = ["pydh3"]
+cmake.verbose = true
 editable.rebuild = true
 logging.level = "INFO"
 wheel.expand-macos-universal-tags = true

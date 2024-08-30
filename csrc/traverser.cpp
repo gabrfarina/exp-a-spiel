@@ -230,33 +230,47 @@ Real Treeplex::br(RealBuf buf, RealBuf strat) const {
 
   return max_val;
 }
+void relu_noramlize(RealBuf buf, const uint32_t mask) {
+  constexpr Real SMALL = 1e-10;
+  Real s = 0;
+  for (uint32_t i = 0; i < buf.size(); ++i) {
+    auto const x = std::max<Real>(buf[i], 0) * (mask & (1 << (i % 9)));
+    s += x;
+    buf[i] = x;
+  }
+  if (s < SMALL){
+    s = 0;
+    for (uint32_t i = 0; i < buf.size(); ++i) {
+      const auto x = mask & (1 << (i % 9));
+      buf[i] = x;
+      s += x;
+    }
+  }
+  for (uint32_t i = 0; i < buf.size(); ++i) {
+    buf[i] /= s;
+  }
+}
+
+Real dot(ConstRealBuf a, ConstRealBuf b){
+  Real s = 0;
+  #ifdef DEBUG
+  CHECK(a.size() == b.size(), "Vector size mismatch (expected %ld, found %ld)", a.size(), b.size());
+  #endif
+  for (uint32_t i = 0; i < a.size(); ++i) {
+    s += a[i] * b[i];
+  }
+  return s;
+}
 
 void Treeplex::regret_to_bh(RealBuf buf) const {
-  constexpr Real SMALL = 1e-10;
-
+ 
 #ifdef DEBUG
   validate_vector(buf);
 #endif
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
-    Real s = 0;
-    for (uint32_t j = 0; j < 9; ++j) {
-      auto const x = (std::max<Real>(buf[i * 9 + j], 0)) * (a & (1 << j));
-      s += x;
-      buf[i * 9 + j] = x;
-    }
-    if (s < SMALL) {
-      s = 0;
-      for (uint32_t j = 0; j < 9; ++j) {
-        const auto x = a & (1 << j);
-        buf[i * 9 + j] = x;
-        s += x;
-      }
-    }
-    for (uint32_t j = 0; j < 9; ++j) {
-      buf[i * 9 + j] /= s;
-    }
+    relu_noramlize(buf.subspan(i * 9, 9), a);
   }
 
 #ifdef DEBUG
@@ -265,6 +279,8 @@ void Treeplex::regret_to_bh(RealBuf buf) const {
 }
 
 template <typename T> Traverser<T>::Traverser() {
+  treeplex[0] = std::make_shared<Treeplex>();
+  treeplex[1] = std::make_shared<Treeplex>();
   treeplex[0]->infosets.reserve(5000000);
   treeplex[1]->infosets.reserve(5000000);
 

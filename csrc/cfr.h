@@ -12,16 +12,22 @@ struct CfrConf {
   bool pcfrp = false;
 };
 
-template <typename T> class CfrSolver {
-public:
+template <typename T>
+class CfrSolver {
+ public:
   CfrSolver(std::shared_ptr<Traverser<T>> traverser, const CfrConf conf);
 
   void step();
+  ConstRealBuf get_regrets(const uint8_t player) const {
+    return regrets_[player];
+  }
+  ConstRealBuf get_bh(const uint8_t player) const { return bh_[player]; }
 
-private:
+ private:
   // does not update the gradient
   void inner_step();
   Real update_regrets(int p);
+  Real update_regrets_pcfrp(int p);
   CfrConf conf_;
   std::shared_ptr<Traverser<T>> traverser_;
   PerPlayer<Averager> averagers_;

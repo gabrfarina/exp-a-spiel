@@ -30,7 +30,10 @@ public:
 
   void push(ConstRealBuf strategy, const Real weight);
   std::valarray<Real> running_avg() const;
-
+  void clear() {
+    sum_weights_ = 0.0;
+    sf_ = 0.0;
+  }
 private:
   std::shared_ptr<Treeplex> treeplex_;
   Real sum_weights_ = 0.0;

@@ -1,12 +1,18 @@
+#include <pybind11/detail/common.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
+#include <strstream>
 #include <sys/types.h>
-
+#include <sstream>
+#include <array>
 #include <cstdint>
+#include <memory>
+#include <ranges>
+#include <sstream>
 #include <valarray>
-
+#include <iomanip>
 #include "averager.h"
 #include "cfr.h"
 #include "dh_state.h"
@@ -14,14 +20,48 @@
 #include "pttt_state.h"
 #include "traverser.h"
 #include "types.h"
-
+#include "utils.h"
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
 
 RealBuf to_span(NdArray &arr) {
   return RealBuf(arr.mutable_data(), arr.size());
 }
+std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
+  return {(py::ssize_t)buf.size() / 9, 9};
+}
+template <size_t N>
+auto calculate_strides(std::array<py::ssize_t, N> shape) {
+  std::array<py::ssize_t, N> stride;
+  stride[N - 1] = sizeof(Real);
+  for (ssize_t i = N - 2; i >= 0; --i) {
+    stride[i] = stride[i + 1] * shape[i + 1];
+  }
+  return stride;
+}
+template <size_t N>
+auto to_buffer(std::array<py::ssize_t, N> shape, RealBuf buf) {
+  CHECK(prod(shape) == buf.size(),
+        "Shape does not match buffer size (expected %lu; found %lu)",
+        buf.size(), prod(shape));
+  return py::buffer_info(buf.data(), sizeof(Real),
+                         py::format_descriptor<Real>::format(), N, shape,
+                         calculate_strides(shape));
+}
+template <size_t N>
+auto to_buffer(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
+  CHECK(prod(shape) == (ssize_t)buf.size(),
+        "Shape does not match buffer size (expected %lu; found %lu)",
+        buf.size(), prod(shape));
+  return py::buffer_info(const_cast<Real*>(buf.data()), sizeof(Real),
+                         py::format_descriptor<Real>::format(), N, shape,
+                         calculate_strides(shape), true);
+}
 
+template <size_t N>
+auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
+  return NdArray(shape, calculate_strides(shape), buf.data());
+}
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();
 std::string infoset_desc(uint64_t key) {
@@ -33,7 +73,7 @@ std::string infoset_desc(uint64_t key) {
   reverse(out.begin(), out.end());
   return out;
 }
-} // namespace
+}  // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -52,47 +92,6 @@ struct EvExplPy {
     }
   }
 };
-
-// struct CFRBufferPy {
-//   std::array<NdArray, 2> regrets, avg_sf, bh, sf, avg_bh;
-//   std::array<Real, 2> avg_denom, ev;
-//   std::array<size_t, 2> l, iter;
-
-//   CFRBufferPy(std::array<size_t, 2> l)
-//       : regrets{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                 NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_sf{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                NdArray(std::array<size_t, 2>{l[1], 9})},
-//         bh{NdArray(std::array<size_t, 2>{l[0], 9}),
-//            NdArray(std::array<size_t, 2>{l[1], 9})},
-//         sf{NdArray(std::array<size_t, 2>{l[0], 9}),
-//            NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_bh{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_denom{1, 1}, ev{0, 0}, l(l), iter{0, 0} {}
-//   CFRBuffer to_cfr_buffer() {
-//     CFRBuffer buf{
-//         .l = l,
-//         .iter = iter,
-//         .avg_denom = avg_denom,
-//         .ev = ev,
-//         .regrets = {regrets[0].mutable_data(), regrets[1].mutable_data()},
-//         .avg_sf = {avg_sf[0].mutable_data(), avg_sf[1].mutable_data()},
-//         .bh = {bh[0].mutable_data(), bh[1].mutable_data()},
-//         .sf = {sf[0].mutable_data(), sf[1].mutable_data()},
-//         .avg_bh = {avg_bh[0].mutable_data(), avg_bh[1].mutable_data()},
-//     };
-//     return buf;
-//   }
-//   void from_cfr_buffer(const CFRBuffer &buf) {
-//     for (int p = 0; p < 2; ++p) {
-//       l[p] = buf.l[p];
-//       iter[p] = buf.iter[p];
-//       avg_denom[p] = buf.avg_denom[p];
-//       ev[p] = buf.ev[p];
-//     }
-//   }
-// };
 
 template <typename T>
 void register_types(py::module &m, const char *state_name,
@@ -219,15 +218,23 @@ void register_types(py::module &m, const char *state_name,
           [](const Traverser<T> &traverser) {
             return traverser.treeplex[1]->num_infosets();
           },
-          nullptr);
+          nullptr)
+      .def("make_cfr_solver",
+           [](const std::shared_ptr<Traverser<T>> t, const CfrConf conf) {
+             return std::make_shared<CfrSolver<T>>(t, conf);
+           });
 
-  py::class_<CfrSolver<T>>(m, cfr_solver_name)
-      .def(py::init())
-      .def("step", &CfrSolver<T>::step);
-
-  m.def("CfrSolver",
-        [](const std::shared_ptr<Traverser<T>> t, const CfrConf conf)
-            -> CfrSolver<T> { return CfrSolver<T>(t, conf); });
+  py::class_<CfrSolver<T>, std::shared_ptr<CfrSolver<T>>>(m, cfr_solver_name)
+      .def(py::init([](const std::shared_ptr<Traverser<T>> t,
+                       const CfrConf conf) -> CfrSolver<T> {
+        return CfrSolver<T>(t, conf);
+      }))
+      .def("step", &CfrSolver<T>::step)
+      .def("avg_bh", [](const CfrSolver<T> &solver) {
+        PerPlayer<ConstRealBuf> avg_bh = {solver.get_bh(0), solver.get_bh(1)};
+        return std::make_tuple(to_buffer(mat_shape(avg_bh[0]), avg_bh[0]),
+                               to_buffer(mat_shape(avg_bh[1]), avg_bh[1]));
+      });
 }
 
 PYBIND11_MODULE(pydh3, m) {
@@ -235,17 +242,21 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readonly("ev0", &EvExplPy::ev0)
       .def_readonly("expl", &EvExplPy::expl)
       .def_readonly("gradient", &EvExplPy::gradient)
-      .def_readonly("best_response", &EvExplPy::best_response);
-  // py::class_<CFRBufferPy>(m, "CFRBuffer")
-  //     .def_readonly("regrets", &CFRBufferPy::regrets)
-  //     .def_readonly("avg_sf", &CFRBufferPy::avg_sf)
-  //     .def_readonly("bh", &CFRBufferPy::bh)
-  //     .def_readonly("sf", &CFRBufferPy::sf)
-  //     .def_readonly("avg_bh", &CFRBufferPy::avg_bh)
-  //     .def_readonly("avg_denom", &CFRBufferPy::avg_denom)
-  //     .def_readonly("ev", &CFRBufferPy::ev)
-  //     .def_readonly("l", &CFRBufferPy::l)
-  //     .def_readonly("iter", &CFRBufferPy::iter);
+      .def_readonly("best_response", &EvExplPy::best_response)
+      .def("__repr__", [](const EvExplPy &ev) {
+        std::ostringstream ss;
+        ss << std::fixed << std::showpoint << std::setprecision(4)
+           << std::setw(5) << "EvExpl(ev0=" << ev.ev0 << "), expl=("
+           << ev.expl[0] << ")";
+        return ss.str();
+      });
+  py::class_<Averager>(m, "Averager")
+      .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
+      .def("running_avg", [](const Averager &a) {
+        return to_ndarray(mat_shape(a.running_avg()), a.running_avg());
+      })
+      .def("clear", &Averager::clear);
+      ;
 
   py::enum_<AVERAGING_STRATEGY>(m, "AVERAGING_STRATEGY")
       .value("UNIFORM", AVERAGING_STRATEGY::UNIFORM)
@@ -253,23 +264,21 @@ PYBIND11_MODULE(pydh3, m) {
       .value("QUADRATIC", AVERAGING_STRATEGY::QUADRATIC);
 
   py::class_<CfrConf>(m, "CfrConf")
-      .def(
-          py::init(),
-          [](AVERAGING_STRATEGY avg, bool alternation, bool dcfr, bool rmplus,
-             bool pcfrp) -> CfrConf {
-            return {
-                .avg = avg,
-                .alternation = alternation,
-                .dcfr = dcfr,
-                .rmplus = rmplus,
-                .pcfrp = pcfrp,
-            };
-          },
-          py::kw_only(), py::arg("avg") = default_cfr_args.avg,
-          py::arg("alternation") = default_cfr_args.alternation,
-          py::arg("dcfr") = default_cfr_args.dcfr,
-          py::arg("rmp") = default_cfr_args.rmplus,
-          py::arg("pcfrp") = default_cfr_args.pcfrp)
+      .def(py::init([](AVERAGING_STRATEGY avg, bool alternation, bool dcfr,
+                       bool rmplus, bool pcfrp) -> CfrConf {
+             return {
+                 .avg = avg,
+                 .alternation = alternation,
+                 .dcfr = dcfr,
+                 .rmplus = rmplus,
+                 .pcfrp = pcfrp,
+             };
+           }),
+           py::kw_only(), py::arg("avg") = default_cfr_args.avg,
+           py::arg("alternation") = default_cfr_args.alternation,
+           py::arg("dcfr") = default_cfr_args.dcfr,
+           py::arg("rmplus") = default_cfr_args.rmplus,
+           py::arg("pcfrp") = default_cfr_args.pcfrp)
       .def_readwrite("avg", &CfrConf::avg)
       .def_readwrite("alternation", &CfrConf::alternation)
       .def_readwrite("dcfr", &CfrConf::dcfr)

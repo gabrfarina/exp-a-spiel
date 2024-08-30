@@ -1,6 +1,7 @@
 #include "cfr.h"
 #include "dh_state.h"
 #include "pttt_state.h"
+#include "traverser.h"
 
 template <typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
@@ -30,7 +31,7 @@ template <typename T> void CfrSolver<T>::inner_step() {
   const auto p = n_iters_ % 2;
   const auto p_iters = n_iters_ / 2;
   if (conf_.pcfrp) {
-
+    update_regrets_pcfrp(p);
   } else {
     update_regrets(p);
     std::copy(std::begin(regrets_[p]), std::begin(regrets_[p]),
@@ -46,6 +47,54 @@ template <typename T> void CfrSolver<T>::inner_step() {
       i *= pos_discount;
     else
       i *= neg_discount;
+}
+
+template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
+#ifdef DEBUG
+  validate_strategy(bf[p]);
+  validate_vector(regrets[p]);
+  validate_vector(traverser_->gradient[p]);
+#endif
+
+  Real ev = 0;
+  for (int32_t i = traverser_->treeplex[p]->num_infosets() - 1; i >= 0; --i) {
+    const uint64_t info = traverser_->treeplex[p]->infoset_keys[i];
+    const uint32_t mask = traverser_->treeplex[p]->legal_actions[i];
+
+    Real max_val = std::numeric_limits<Real>::lowest();
+
+    for (uint32_t j = 0; j < 9; ++j) {
+      if ((mask & (1 << j)) &&
+          (traverser_->gradients[p][i * 9 + j] > max_val)) {
+        max_val = traverser_->gradients[p][i * 9 + j];
+      }
+    }
+
+    
+    for (uint32_t j = 0; j < 9; ++j) {
+      if (mask & (1 << j)) {
+        regrets_[p][i * 9 + j] += traverser_->gradients[p][i * 9 + j] - max_val;
+        bh_[p][i * 9 + j] = regrets_[p][i * 9 + j];
+      }
+    }
+    relu_noramlize(std::span(bh_[p]).subspan(i * 9, 9), mask);
+    ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
+             std::span(bh_[p]).subspan(i * 9, 9));
+             
+    if (i) {
+      const uint32_t parent = traverser_->treeplex[p]->parent_index[i];
+      const uint32_t parent_a = parent_action(info);
+      traverser_->gradients[p][parent * 9 + parent_a] += ev;
+    }
+  }
+
+#ifdef DEBUG
+  validate_strategy(bf[p]);
+  validate_vector(regrets[p]);
+  validate_vector(traverser_->gradient[p]);
+#endif
+
+  return ev;
 }
 
 template <typename T> Real CfrSolver<T>::update_regrets(int p) {
