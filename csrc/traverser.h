@@ -60,7 +60,7 @@ template <typename T> struct Traverser {
   Averager new_averager(const uint8_t player);
 
 private:
-  PerPlayer<std::valarray<Real>> bufs_[9];
+  PerPlayer<std::array<std::valarray<Real>, 9>> bufs_;
   PerPlayer<std::valarray<Real>> sf_strategies_;
 
   void compute_sf_strategies_(const PerPlayer<ConstRealBuf> strategies);

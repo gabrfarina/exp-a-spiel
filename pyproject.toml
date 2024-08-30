@@ -53,7 +53,7 @@ gdb = ">=15.1,<16"
 default = {features = ["dev"]}
 
 [tool.scikit-build]
-build-dir = "./build"
+build-dir = "./pypy_build"
 cmake.targets = ["pydh3"]
 cmake.verbose = true
 editable.rebuild = true

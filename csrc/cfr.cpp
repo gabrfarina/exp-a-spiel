@@ -51,9 +51,9 @@ template <typename T> void CfrSolver<T>::inner_step() {
 
 template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
 #ifdef DEBUG
-  validate_strategy(bf[p]);
-  validate_vector(regrets[p]);
-  validate_vector(traverser_->gradient[p]);
+  traverser_->treeplex[p]->validate_strategy(bh_[p]);
+  traverser_->treeplex[p]->validate_vector(regrets_[p]);
+  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
 #endif
 
   Real ev = 0;
@@ -89,9 +89,9 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
   }
 
 #ifdef DEBUG
-  validate_strategy(bf[p]);
-  validate_vector(regrets[p]);
-  validate_vector(traverser_->gradient[p]);
+  traverser_->treeplex[p]->validate_strategy(bh_[p]);
+  traverser_->treeplex[p]->validate_vector(regrets_[p]);
+  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
 #endif
 
   return ev;
@@ -99,9 +99,9 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
 
 template <typename T> Real CfrSolver<T>::update_regrets(int p) {
 #ifdef DEBUG
-  validate_strategy(bf[p]);
-  validate_vector(regrets[p]);
-  validate_vector(traverser_->gradient[p]);
+  traverser_->treeplex[p]->validate_strategy(bh_[p]);
+  traverser_->treeplex[p]->validate_vector(regrets_[p]);
+  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
 #endif
 
   Real ev = 0;
@@ -133,11 +133,11 @@ template <typename T> Real CfrSolver<T>::update_regrets(int p) {
     }
   }
 
-#ifdef DEBUG
-  validate_strategy(bf[p]);
-  validate_vector(regrets[p]);
-  validate_vector(traverser_->gradient[p]);
-#endif
+
+  traverser_->treeplex[p]->validate_strategy(bh_[p]);
+  traverser_->treeplex[p]->validate_vector(regrets_[p]);
+  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
+
 
   return ev;
 }

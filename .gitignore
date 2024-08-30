@@ -2,3 +2,4 @@ __pycache__
 .cache
 .pixi
 build
+pypy_build

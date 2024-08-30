@@ -9,9 +9,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <memory>
-#include <ranges>
 #include <sstream>
-#include <strstream>
 #include <valarray>
 
 #include "averager.h"
@@ -29,40 +27,48 @@ RealBuf to_span(NdArray &arr) {
   return RealBuf(arr.mutable_data(), arr.size());
 }
 std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
+  CHECK(buf.size() % 9 == 0, "Buffer size must be a multiple of 9");
   return {(py::ssize_t)buf.size() / 9, 9};
 }
-template <size_t N>
-auto calculate_strides(std::array<py::ssize_t, N> shape) {
-  std::array<py::ssize_t, N> stride;
-  stride[N - 1] = sizeof(Real);
-  for (ssize_t i = N - 2; i >= 0; --i) {
-    stride[i] = stride[i + 1] * shape[i + 1];
-  }
-  return stride;
-}
-template <size_t N>
-auto to_buffer(std::array<py::ssize_t, N> shape, RealBuf buf) {
-  CHECK(prod(shape) == buf.size(),
-        "Shape does not match buffer size (expected %lu; found %lu)",
-        buf.size(), prod(shape));
-  return py::buffer_info(buf.data(), sizeof(Real),
-                         py::format_descriptor<Real>::format(), N, shape,
-                         calculate_strides(shape));
-}
-template <size_t N>
-auto to_buffer(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
-  CHECK(prod(shape) == (ssize_t)buf.size(),
-        "Shape does not match buffer size (expected %lu; found %lu)",
-        buf.size(), prod(shape));
-  return py::buffer_info(const_cast<Real *>(buf.data()), sizeof(Real),
-                         py::format_descriptor<Real>::format(), N, shape,
-                         calculate_strides(shape), true);
-}
+// template <size_t N>
+// auto calculate_strides(std::array<py::ssize_t, N> shape) {
+//   std::array<py::ssize_t, N> stride;
+//   stride[N - 1] = sizeof(Real);
+//   for (ssize_t i = N - 2; i >= 0; --i) {
+//     stride[i] = stride[i + 1] * shape[i + 1];
+//   }
+//   return stride;
+// }
+// template <size_t N>
+// auto to_buffer(std::array<py::ssize_t, N> shape, RealBuf buf) {
+//   CHECK(prod(shape) == buf.size(),
+//         "Shape does not match buffer size (expected %lu; found %lu)",
+//         buf.size(), prod(shape));
+//   return py::buffer_info(buf.data(), sizeof(Real),
+//                          py::format_descriptor<Real>::format(), N, shape,
+//                          calculate_strides(shape));
+// }
+// template <size_t N>
+// auto to_buffer(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
+//   CHECK(prod(shape) == (ssize_t)buf.size(),
+//         "Shape does not match buffer size (expected %lu; found %lu)",
+//         buf.size(), prod(shape));
+//   return py::buffer_info(const_cast<Real *>(buf.data()), sizeof(Real),
+//                          py::format_descriptor<Real>::format(), N, shape,
+//                          calculate_strides(shape), true);
+// }
 
 template <size_t N>
 auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
-  return NdArray(shape, calculate_strides(shape), buf.data());
+  CHECK(prod(shape) == (ssize_t)buf.size(),
+        "Shape does not match buffer size (expected %lu; found %lu)",
+        buf.size(), prod(shape));
+  return NdArray(shape, buf.data());
 }
+auto to_ndarray(ConstRealBuf buf) {
+  return to_ndarray(mat_shape(buf), buf);
+}
+
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();
 std::string infoset_desc(uint64_t key) {
@@ -84,12 +90,9 @@ struct EvExplPy {
 
   // NB: allows implicit conversion
   EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl(ev.expl) {
-    for (int p = 0; p < 2; ++p) {
-      gradient[p] = NdArray(std::array<size_t, 2>{ev.gradient[p].size() / 9, 9},
-                            &ev.gradient[p][0]);
-      best_response[p] =
-          NdArray(std::array<size_t, 2>{ev.best_response[p].size() / 9, 9},
-                  &ev.best_response[p][0]);
+    for (auto p: {0, 1}) {
+      gradient[p] = to_ndarray(ev.gradient[p]);
+      best_response[p] = to_ndarray(ev.best_response[p]);
     }
   }
 };
@@ -190,8 +193,7 @@ void register_types(py::module &m, const std::string &prefix) {
                const uint32_t rows = traverser.treeplex[p]->num_infosets();
                std::valarray<Real> strategy(0.0, rows * 9);
                traverser.treeplex[p]->set_uniform(strategy);
-               out[p] =
-                   NdArray(std::array<py::ssize_t, 2>{rows, 9}, &strategy[0]);
+               out[p] = to_ndarray(strategy);
              }
 
              return out;
@@ -233,9 +235,8 @@ void register_types(py::module &m, const std::string &prefix) {
       }))
       .def("step", &CfrSolver<T>::step)
       .def("avg_bh", [](const CfrSolver<T> &solver) {
-        PerPlayer<ConstRealBuf> avg_bh = {solver.get_bh(0), solver.get_bh(1)};
-        return std::make_tuple(to_buffer(mat_shape(avg_bh[0]), avg_bh[0]),
-                               to_buffer(mat_shape(avg_bh[1]), avg_bh[1]));
+        return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
+                              to_ndarray(solver.get_avg_bh(1)));
       });
 }
 
@@ -256,7 +257,7 @@ PYBIND11_MODULE(pydh3, m) {
       .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
       .def("running_avg",
            [](const Averager &a) {
-             return to_ndarray(mat_shape(a.running_avg()), a.running_avg());
+             return to_ndarray(a.running_avg());
            })
       .def("clear", &Averager::clear);
   ;

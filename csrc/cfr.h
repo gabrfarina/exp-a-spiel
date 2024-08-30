@@ -22,6 +22,11 @@ class CfrSolver {
     return regrets_[player];
   }
   ConstRealBuf get_bh(const uint8_t player) const { return bh_[player]; }
+  auto get_avg_bh(const uint8_t player) const {
+    auto x = averagers_[player].running_avg();
+    traverser_->treeplex[player]->validate_strategy(x);
+    return x;
+  }
 
  private:
   // does not update the gradient

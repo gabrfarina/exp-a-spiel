@@ -24,7 +24,9 @@ void Averager::push(ConstRealBuf strategy, const Real weight) {
 std::valarray<Real> Averager::running_avg() const {
   CHECK(sum_weights_ > 0.0, "No data to average");
   std::valarray<Real> out = sf_;
+  treeplex_->validate_vector(out);
   treeplex_->sf_to_bh(out);
+  treeplex_->validate_strategy(out);
   return out;
 }
 

@@ -101,6 +101,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/pure_eval-0.2.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pybind11-2.13.5-py312h68727a3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/pybind11-global-2.13.5-py312h68727a3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/pybind11-stubgen-2.4.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pygments-2.18.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/pytest-8.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/python-3.12.5-h2ad013b_0_cpython.conda
@@ -395,7 +396,7 @@ packages:
   name: dh3
   version: 0.0.1
   path: .
-  sha256: 74b58c115acbd374c2d77f83094d1bb41278e165b2abc0fe1e28b6e558428d9e
+  sha256: b74ccc5d945068c7a139c0a03bee37f8d65e0012325d6708eb820d4a58c6d12f
   requires_python: '>=3.7'
   editable: true
 - kind: conda
@@ -1831,6 +1832,22 @@ packages:
   - pkg:pypi/pybind11-global?source=hash-mapping
   size: 180569
   timestamp: 1724368064748
+- kind: conda
+  name: pybind11-stubgen
+  version: 2.4.2
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/pybind11-stubgen-2.4.2-pyhd8ed1ab_0.conda
+  sha256: 4f65fcafe946508343f46a87e7726eee5021c539c772907196eb519b546fff5c
+  md5: 369e97c1f398d28eca347adca86f1a28
+  depends:
+  - python >=3.4
+  license: BSD-Protection
+  purls:
+  - pkg:pypi/pybind11-stubgen?source=hash-mapping
+  size: 29785
+  timestamp: 1701070777621
 - kind: conda
   name: pygments
   version: 2.18.0
