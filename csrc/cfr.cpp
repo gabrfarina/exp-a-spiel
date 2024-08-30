@@ -15,7 +15,7 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
   traverser_->treeplex[0]->set_uniform(bh_[0]);
   traverser_->treeplex[1]->set_uniform(bh_[0]);
   averagers_[0].push(bh_[0], 1);
-  averagers_[1].push(bh_[0], 1);
+  averagers_[1].push(bh_[1], 1);
 }
 
 template <typename T> void CfrSolver<T>::step() {
@@ -79,7 +79,7 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
     relu_noramlize(std::span(bh_[p]).subspan(i * 9, 9), mask);
     ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
              std::span(bh_[p]).subspan(i * 9, 9));
-             
+
     if (i) {
       const uint32_t parent = traverser_->treeplex[p]->parent_index[i];
       const uint32_t parent_a = parent_action(info);
