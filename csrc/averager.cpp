@@ -27,3 +27,16 @@ std::valarray<Real> Averager::running_avg() const {
   treeplex_->sf_to_bh(out);
   return out;
 }
+
+std::string avg_str(const AveragingStrategy avg) {
+  switch (avg) {
+  case UNIFORM:
+    return "uniform";
+  case LINEAR:
+    return "linear";
+  case QUADRATIC:
+    return "quadratic";
+  default:
+    CHECK(false, "Unknown averaging strategy %d", avg);
+  }
+}

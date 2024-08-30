@@ -6,7 +6,7 @@
 #include <valarray>
 
 enum AveragingStrategy { UNIFORM, LINEAR, QUADRATIC };
-
+std::string avg_str(const AveragingStrategy avg);
 struct Treeplex;
 
 inline Real iter_weight(const AveragingStrategy avg, const uint32_t iteration) {

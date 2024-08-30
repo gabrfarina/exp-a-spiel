@@ -3,16 +3,17 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
-#include <strstream>
 #include <sys/types.h>
-#include <sstream>
+
 #include <array>
 #include <cstdint>
+#include <iomanip>
 #include <memory>
 #include <ranges>
 #include <sstream>
+#include <strstream>
 #include <valarray>
-#include <iomanip>
+
 #include "averager.h"
 #include "cfr.h"
 #include "dh_state.h"
@@ -53,7 +54,7 @@ auto to_buffer(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   CHECK(prod(shape) == (ssize_t)buf.size(),
         "Shape does not match buffer size (expected %lu; found %lu)",
         buf.size(), prod(shape));
-  return py::buffer_info(const_cast<Real*>(buf.data()), sizeof(Real),
+  return py::buffer_info(const_cast<Real *>(buf.data()), sizeof(Real),
                          py::format_descriptor<Real>::format(), N, shape,
                          calculate_strides(shape), true);
 }
@@ -224,7 +225,8 @@ void register_types(py::module &m, const std::string &prefix) {
              return std::make_shared<CfrSolver<T>>(t, conf);
            });
 
-  py::class_<CfrSolver<T>, std::shared_ptr<CfrSolver<T>>>(m, cfr_solver_name)
+  py::class_<CfrSolver<T>, std::shared_ptr<CfrSolver<T>>>(
+      m, (prefix + "Solver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t,
                        const CfrConf conf) -> CfrSolver<T> {
         return CfrSolver<T>(t, conf);
@@ -252,11 +254,12 @@ PYBIND11_MODULE(pydh3, m) {
       });
   py::class_<Averager>(m, "Averager")
       .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
-      .def("running_avg", [](const Averager &a) {
-        return to_ndarray(mat_shape(a.running_avg()), a.running_avg());
-      })
+      .def("running_avg",
+           [](const Averager &a) {
+             return to_ndarray(mat_shape(a.running_avg()), a.running_avg());
+           })
       .def("clear", &Averager::clear);
-      ;
+  ;
 
   py::enum_<AveragingStrategy>(m, "AveragingStrategy")
       .value("UNIFORM", AveragingStrategy::UNIFORM)
@@ -264,7 +267,7 @@ PYBIND11_MODULE(pydh3, m) {
       .value("QUADRATIC", AveragingStrategy::QUADRATIC);
 
   py::class_<CfrConf>(m, "CfrConf")
-      .def(py::init([](AVERAGING_STRATEGY avg, bool alternation, bool dcfr,
+      .def(py::init([](AveragingStrategy avg, bool alternation, bool dcfr,
                        bool rmplus, bool pcfrp) -> CfrConf {
              return {
                  .avg = avg,
@@ -283,7 +286,14 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readwrite("alternation", &CfrConf::alternation)
       .def_readwrite("dcfr", &CfrConf::dcfr)
       .def_readwrite("pcfrp", &CfrConf::pcfrp)
-      .def_readwrite("rmplus", &CfrConf::rmplus);
+      .def_readwrite("rmplus", &CfrConf::rmplus)
+      .def("__repr__", [](const CfrConf &conf) {
+        std::ostringstream ss;
+        ss << std::boolalpha << "CfrConf(avg=" << avg_str(conf.avg)
+           << ", alternation=" << conf.alternation << ", dcfr=" << conf.dcfr
+           << ", rmplus=" << conf.rmplus << ", pcfrp=" << conf.pcfrp << ")";
+        return ss.str();
+      });
 
   register_types<DhState<false>>(m, "Dh");
   register_types<DhState<true>>(m, "AbruptDh");
