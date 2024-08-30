@@ -2,8 +2,8 @@
 #include "traverser.h"
 
 Averager::Averager(std::shared_ptr<Treeplex> treeplex)
-    : treeplex_(treeplex), sum_weights_(0.0), sf_(treeplex->num_infosets() * 9),
-      buf_(treeplex->num_infosets() * 9) {}
+    : treeplex_(treeplex), sum_weights_(0.0), sf_(0.0, treeplex->num_infosets() * 9),
+      buf_(0.0, treeplex->num_infosets() * 9) {}
 
 void Averager::push(ConstRealBuf strategy, const Real weight) {
   CHECK(strategy.size() == sf_.size(), "Strategy size mismatch");
