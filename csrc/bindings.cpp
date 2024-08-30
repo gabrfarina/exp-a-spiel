@@ -53,51 +53,9 @@ struct EvExplPy {
   }
 };
 
-// struct CFRBufferPy {
-//   std::array<NdArray, 2> regrets, avg_sf, bh, sf, avg_bh;
-//   std::array<Real, 2> avg_denom, ev;
-//   std::array<size_t, 2> l, iter;
-
-//   CFRBufferPy(std::array<size_t, 2> l)
-//       : regrets{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                 NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_sf{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                NdArray(std::array<size_t, 2>{l[1], 9})},
-//         bh{NdArray(std::array<size_t, 2>{l[0], 9}),
-//            NdArray(std::array<size_t, 2>{l[1], 9})},
-//         sf{NdArray(std::array<size_t, 2>{l[0], 9}),
-//            NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_bh{NdArray(std::array<size_t, 2>{l[0], 9}),
-//                NdArray(std::array<size_t, 2>{l[1], 9})},
-//         avg_denom{1, 1}, ev{0, 0}, l(l), iter{0, 0} {}
-//   CFRBuffer to_cfr_buffer() {
-//     CFRBuffer buf{
-//         .l = l,
-//         .iter = iter,
-//         .avg_denom = avg_denom,
-//         .ev = ev,
-//         .regrets = {regrets[0].mutable_data(), regrets[1].mutable_data()},
-//         .avg_sf = {avg_sf[0].mutable_data(), avg_sf[1].mutable_data()},
-//         .bh = {bh[0].mutable_data(), bh[1].mutable_data()},
-//         .sf = {sf[0].mutable_data(), sf[1].mutable_data()},
-//         .avg_bh = {avg_bh[0].mutable_data(), avg_bh[1].mutable_data()},
-//     };
-//     return buf;
-//   }
-//   void from_cfr_buffer(const CFRBuffer &buf) {
-//     for (int p = 0; p < 2; ++p) {
-//       l[p] = buf.l[p];
-//       iter[p] = buf.iter[p];
-//       avg_denom[p] = buf.avg_denom[p];
-//       ev[p] = buf.ev[p];
-//     }
-//   }
-// };
-
 template <typename T>
-void register_types(py::module &m, const char *state_name,
-                    const char *traverser_name, const char *cfr_solver_name) {
-  py::class_<T>(m, state_name)
+void register_types(py::module &m, const std::string &prefix) {
+  py::class_<T>(m, (prefix + "State").c_str())
       .def(py::init())
       .def("clone", [](T &s) -> T { return s; })
       .def("player",
@@ -147,7 +105,8 @@ void register_types(py::module &m, const char *state_name,
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string);
 
-  py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(m, traverser_name)
+  py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(
+      m, (prefix + "Traverser").c_str())
       .def(py::init<>())
       .def("ev_and_exploitability",
            [](Traverser<T> &traverser, NdArray strat0,
@@ -221,7 +180,7 @@ void register_types(py::module &m, const char *state_name,
           },
           nullptr);
 
-  py::class_<CfrSolver<T>>(m, cfr_solver_name)
+  py::class_<CfrSolver<T>>(m, (prefix + "Solver").c_str())
       .def(py::init())
       .def("step", &CfrSolver<T>::step);
 
@@ -236,26 +195,16 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readonly("expl", &EvExplPy::expl)
       .def_readonly("gradient", &EvExplPy::gradient)
       .def_readonly("best_response", &EvExplPy::best_response);
-  // py::class_<CFRBufferPy>(m, "CFRBuffer")
-  //     .def_readonly("regrets", &CFRBufferPy::regrets)
-  //     .def_readonly("avg_sf", &CFRBufferPy::avg_sf)
-  //     .def_readonly("bh", &CFRBufferPy::bh)
-  //     .def_readonly("sf", &CFRBufferPy::sf)
-  //     .def_readonly("avg_bh", &CFRBufferPy::avg_bh)
-  //     .def_readonly("avg_denom", &CFRBufferPy::avg_denom)
-  //     .def_readonly("ev", &CFRBufferPy::ev)
-  //     .def_readonly("l", &CFRBufferPy::l)
-  //     .def_readonly("iter", &CFRBufferPy::iter);
 
-  py::enum_<AVERAGING_STRATEGY>(m, "AVERAGING_STRATEGY")
-      .value("UNIFORM", AVERAGING_STRATEGY::UNIFORM)
-      .value("LINEAR", AVERAGING_STRATEGY::LINEAR)
-      .value("QUADRATIC", AVERAGING_STRATEGY::QUADRATIC);
+  py::enum_<AveragingStrategy>(m, "AveragingStrategy")
+      .value("UNIFORM", AveragingStrategy::UNIFORM)
+      .value("LINEAR", AveragingStrategy::LINEAR)
+      .value("QUADRATIC", AveragingStrategy::QUADRATIC);
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(
           py::init(),
-          [](AVERAGING_STRATEGY avg, bool alternation, bool dcfr, bool rmplus,
+          [](AveragingStrategy avg, bool alternation, bool dcfr, bool rmplus,
              bool pcfrp) -> CfrConf {
             return {
                 .avg = avg,
@@ -276,11 +225,8 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readwrite("pcfrp", &CfrConf::pcfrp)
       .def_readwrite("rmplus", &CfrConf::rmplus);
 
-  register_types<DhState<false>>(m, "DhState", "DhTraverser", "DhCfrSolver");
-  register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser",
-                                "AbruptDhCfrSolver");
-  register_types<PtttState<false>>(m, "PtttState", "PtttTraverser",
-                                   "PtttCfrSolver");
-  register_types<PtttState<true>>(m, "AbruptPtttState", "AbruptPtttTraverser",
-                                  "AbruptPtttCfrSolver");
+  register_types<DhState<false>>(m, "Dh");
+  register_types<DhState<true>>(m, "AbruptDh");
+  register_types<PtttState<false>>(m, "Pttt");
+  register_types<PtttState<true>>(m, "AbruptPttt");
 }

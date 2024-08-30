@@ -8,9 +8,8 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
     : conf_(conf), traverser_(traverser),
       averagers_{traverser_->new_averager(0), traverser_->new_averager(1)},
       regrets_{
-          std::valarray<Real>(0.0, traverser_->treeplex[0]->num_infosets() * 9),
-          std::valarray<Real>(0.0,
-                              traverser_->treeplex[1]->num_infosets() * 9)},
+          std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
+          std::valarray<Real>(0., traverser_->treeplex[1]->num_infosets() * 9)},
       bh_{regrets_} {
   traverser_->treeplex[0]->set_uniform(bh_[0]);
   traverser_->treeplex[1]->set_uniform(bh_[0]);

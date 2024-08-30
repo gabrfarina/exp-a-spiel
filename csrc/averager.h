@@ -5,12 +5,11 @@
 #include <memory>
 #include <valarray>
 
-enum AVERAGING_STRATEGY { UNIFORM, LINEAR, QUADRATIC };
+enum AveragingStrategy { UNIFORM, LINEAR, QUADRATIC };
 
 struct Treeplex;
 
-inline Real iter_weight(const AVERAGING_STRATEGY avg,
-                        const uint32_t iteration) {
+inline Real iter_weight(const AveragingStrategy avg, const uint32_t iteration) {
   CHECK(iteration > 0, "Iteration must be positive");
   switch (avg) {
   case UNIFORM:
