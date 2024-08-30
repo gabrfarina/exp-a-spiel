@@ -16,6 +16,7 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
     traverser_->treeplex[p]->set_uniform(bh_[p]);
     averagers_[p].push(bh_[p], 1);
   }
+  n_iters_ = 2;
 }
 
 template <typename T> void CfrSolver<T>::step() {
