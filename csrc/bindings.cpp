@@ -94,9 +94,8 @@ struct EvExplPy {
 };
 
 template <typename T>
-void register_types(py::module &m, const char *state_name,
-                    const char *traverser_name, const char *cfr_solver_name) {
-  py::class_<T>(m, state_name)
+void register_types(py::module &m, const std::string &prefix) {
+  py::class_<T>(m, (prefix + "State").c_str())
       .def(py::init())
       .def("clone", [](T &s) -> T { return s; })
       .def("player",
@@ -146,7 +145,8 @@ void register_types(py::module &m, const char *state_name,
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string);
 
-  py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(m, traverser_name)
+  py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(
+      m, (prefix + "Traverser").c_str())
       .def(py::init<>())
       .def("ev_and_exploitability",
            [](Traverser<T> &traverser, NdArray strat0,
@@ -258,10 +258,10 @@ PYBIND11_MODULE(pydh3, m) {
       .def("clear", &Averager::clear);
       ;
 
-  py::enum_<AVERAGING_STRATEGY>(m, "AVERAGING_STRATEGY")
-      .value("UNIFORM", AVERAGING_STRATEGY::UNIFORM)
-      .value("LINEAR", AVERAGING_STRATEGY::LINEAR)
-      .value("QUADRATIC", AVERAGING_STRATEGY::QUADRATIC);
+  py::enum_<AveragingStrategy>(m, "AveragingStrategy")
+      .value("UNIFORM", AveragingStrategy::UNIFORM)
+      .value("LINEAR", AveragingStrategy::LINEAR)
+      .value("QUADRATIC", AveragingStrategy::QUADRATIC);
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(py::init([](AVERAGING_STRATEGY avg, bool alternation, bool dcfr,
@@ -285,11 +285,8 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readwrite("pcfrp", &CfrConf::pcfrp)
       .def_readwrite("rmplus", &CfrConf::rmplus);
 
-  register_types<DhState<false>>(m, "DhState", "DhTraverser", "DhCfrSolver");
-  register_types<DhState<true>>(m, "AbruptDhState", "AbruptDhTraverser",
-                                "AbruptDhCfrSolver");
-  register_types<PtttState<false>>(m, "PtttState", "PtttTraverser",
-                                   "PtttCfrSolver");
-  register_types<PtttState<true>>(m, "AbruptPtttState", "AbruptPtttTraverser",
-                                  "AbruptPtttCfrSolver");
+  register_types<DhState<false>>(m, "Dh");
+  register_types<DhState<true>>(m, "AbruptDh");
+  register_types<PtttState<false>>(m, "Pttt");
+  register_types<PtttState<true>>(m, "AbruptPttt");
 }

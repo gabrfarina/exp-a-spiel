@@ -5,7 +5,7 @@
 #include "types.h"
 
 struct CfrConf {
-  AVERAGING_STRATEGY avg = AVERAGING_STRATEGY::LINEAR;
+  AveragingStrategy avg = AveragingStrategy::LINEAR;
   bool alternation = true;
   bool dcfr = false;
   bool rmplus = false;
