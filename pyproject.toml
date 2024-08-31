@@ -6,11 +6,9 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "dh3"
 version = "0.0.1"
-description="dh3"
+description = "dh3"
 readme = "README.md"
-authors = [
-  { name ="Gabriele Farina", email = "gfarina@mit.edu" },
-]
+authors = [{ name = "Gabriele Farina", email = "gfarina@mit.edu" }]
 requires-python = ">=3.7"
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -31,8 +29,8 @@ platforms = ["linux-64"]
 boost = ">=1.85"
 boost-cpp = ">=1.85"
 cmake = ">=3.29"
-gcc = "<=13" # https://github.com/pybind/pybind11/issues/5206
-gxx = "<=13" # https://github.com/pybind/pybind11/issues/5206
+gcc = "<=13"                  # https://github.com/pybind/pybind11/issues/5206
+gxx = "<=13"                  # https://github.com/pybind/pybind11/issues/5206
 ninja = "*"
 numpy = "<2"
 pip = "*"
@@ -41,20 +39,24 @@ python = ">3.10"
 scikit-build-core = ">=0.3.3"
 
 [tool.pixi.pypi-dependencies]
-dh3 = { path = ".", editable = true }
+dh3 = { path = "." } # editable = true 
 
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
 pytest = "*"
+gdb = ">=15.1"
+pybind11-stubgen = "*"
+submitit = "*"
 
 [tool.pixi.environments]
-default = {features = ["dev"]}
+default = { features = ["dev"] }
 
 [tool.scikit-build]
+# build-dir = "./pypy_build"
+cmake.targets = ["pydh3"]
+cmake.verbose = true
+# editable.rebuild = true
+logging.level = "INFO"
 wheel.expand-macos-universal-tags = true
 wheel.license-files = []
 wheel.packages = ["csrc/dh3"]
-editable.rebuild = true
-build.verbose = true
-build.targets = ["pydh3"]
-build-dir = "./build"

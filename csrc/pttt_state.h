@@ -1,12 +1,9 @@
 #pragma once
 
-#include <array>
 #include <cassert>
 #include <cstdint>
-#include <iostream>
 
 #include "base_state.h"
-#include "log.h"
 
 inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
   std::string lines[] = {"...", "...", "..."};
