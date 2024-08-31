@@ -31,8 +31,8 @@ class CfrSolver {
  private:
   // does not update the gradient
   void inner_step();
+  template <bool predictive>
   Real update_regrets(int p);
-  Real update_regrets_pcfrp(int p);
   CfrConf conf_;
   std::shared_ptr<Traverser<T>> traverser_;
   PerPlayer<Averager> averagers_;

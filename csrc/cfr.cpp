@@ -2,7 +2,8 @@
 #include "dh_state.h"
 #include "pttt_state.h"
 #include "traverser.h"
-
+#include "utils.h"
+#include <limits>
 template <typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
                         const CfrConf conf)
@@ -37,12 +38,9 @@ template <typename T> void CfrSolver<T>::inner_step() {
   const auto p = n_iters_ % 2;
   const auto p_iters = n_iters_ / 2;
   if (conf_.pcfrp) {
-    update_regrets_pcfrp(p);
+    update_regrets<true>(p);
   } else {
-    update_regrets(p);
-    std::copy(std::begin(regrets_[p]), std::begin(regrets_[p]),
-              std::begin(bh_[p]));
-    traverser_->treeplex[p]->regret_to_bh(bh_[p]);
+    update_regrets<false>(p);
   }
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters));
@@ -55,7 +53,10 @@ template <typename T> void CfrSolver<T>::inner_step() {
       i *= neg_discount;
 }
 
-template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
+
+template <typename T>
+template <bool predictive>
+ Real CfrSolver<T>::update_regrets(int p) {
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   traverser_->treeplex[p]->validate_vector(regrets_[p]);
   traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
@@ -68,22 +69,23 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
     Real max_val = std::numeric_limits<Real>::lowest();
 
     for (uint32_t j = 0; j < 9; ++j) {
-      if ((mask & (1 << j)) &&
+      if (is_valid(mask, j) &&
           (traverser_->gradients[p][i * 9 + j] > max_val)) {
         max_val = traverser_->gradients[p][i * 9 + j];
       }
     }
-
-    
+    ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
+          std::span(bh_[p]).subspan(i * 9, 9));
     for (uint32_t j = 0; j < 9; ++j) {
-      if (mask & (1 << j)) {
-        regrets_[p][i * 9 + j] += traverser_->gradients[p][i * 9 + j] - max_val;
+      if (is_valid(mask, j)) {
+        regrets_[p][i * 9 + j] += traverser_->gradients[p][i * 9 + j] - ev;
         bh_[p][i * 9 + j] = regrets_[p][i * 9 + j];
       }
     }
     relu_noramlize(std::span(bh_[p]).subspan(i * 9, 9), mask);
-    ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
-             std::span(bh_[p]).subspan(i * 9, 9));
+    if (predictive)
+      ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
+              std::span(bh_[p]).subspan(i * 9, 9));
 
     if (i) {
       const uint32_t parent = traverser_->treeplex[p]->parent_index[i];
@@ -100,50 +102,6 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
   return ev;
 }
 
-template <typename T> Real CfrSolver<T>::update_regrets(int p) {
-#ifdef DEBUG
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(regrets_[p]);
-  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
-#endif
-
-  Real ev = 0;
-  for (int32_t i = traverser_->treeplex[p]->num_infosets() - 1; i >= 0; --i) {
-    const uint64_t info = traverser_->treeplex[p]->infoset_keys[i];
-    const uint32_t mask = traverser_->treeplex[p]->legal_actions[i];
-
-    Real max_val = std::numeric_limits<Real>::lowest();
-
-    for (uint32_t j = 0; j < 9; ++j) {
-      if ((mask & (1 << j)) &&
-          (traverser_->gradients[p][i * 9 + j] > max_val)) {
-        max_val = traverser_->gradients[p][i * 9 + j];
-      }
-    }
-
-    ev = 0;
-    for (uint32_t j = 0; j < 9; ++j) {
-      if (mask & (1 << j)) {
-        ev += traverser_->gradients[p][i * 9 + j] * bh_[p][i * 9 + j];
-        regrets_[p][i * 9 + j] += traverser_->gradients[p][i * 9 + j] - max_val;
-      }
-    }
-
-    if (i) {
-      const uint32_t parent = traverser_->treeplex[p]->parent_index[i];
-      const uint32_t parent_a = parent_action(info);
-      traverser_->gradients[p][parent * 9 + parent_a] += ev;
-    }
-  }
-
-
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(regrets_[p]);
-  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
-
-
-  return ev;
-}
 
 template class CfrSolver<DhState<false>>;
 template class CfrSolver<DhState<true>>;

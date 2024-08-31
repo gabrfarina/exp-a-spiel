@@ -230,20 +230,22 @@ void relu_noramlize(RealBuf buf, const uint32_t mask) {
   constexpr Real SMALL = 1e-10;
   Real s = 0;
   for (uint32_t i = 0; i < buf.size(); ++i) {
-    auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i % 9);
+    auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i);
     s += x;
     buf[i] = x;
   }
   if (s < SMALL) {
     s = 0;
     for (uint32_t i = 0; i < buf.size(); ++i) {
-      buf[i] = is_valid(mask, i % 9);
+      buf[i] = is_valid(mask, i);
       s += buf[i];
     }
   }
   for (uint32_t i = 0; i < buf.size(); ++i) {
     buf[i] /= s;
   }
+
+
 }
 
 Real dot(ConstRealBuf a, ConstRealBuf b) {

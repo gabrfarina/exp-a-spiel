@@ -18,6 +18,15 @@
 
 int main() {
   INFO("starting dh3 (num threads: %d)", omp_get_max_threads());
+  {
+    std::vector<Real> x = {3, 2, 1};
+    uint32_t mask = 0b111;
+    relu_noramlize(x, mask);
+    std::cout << "relu_noramlize: ";
+    for (auto i : x) {
+      std::cout << i << " ";
+    }
+  }
 
   Traverser<DhState<false>> traverser;
   std::valarray<Real> strategies[2];
@@ -29,4 +38,4 @@ int main() {
   traverser.treeplex[1]->set_uniform(strategies[1]);
 
   traverser.ev_and_exploitability({strategies[0], strategies[1]});
-}
+} 
