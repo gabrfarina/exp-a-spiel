@@ -1,9 +1,7 @@
 import dh3
 import time
 import logging
-import numpy as np
 import itertools
-import argparse
 import submitit
 from pathlib import Path
 
