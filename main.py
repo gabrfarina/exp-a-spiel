@@ -12,24 +12,26 @@ logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
 
 
-
 def train(
-    avg:dh3.AveragingStrategy,
-    alternation:bool,
-    dcfr:bool,
-    rmplus:bool,
-    pcfrp:bool,
+    avg: dh3.AveragingStrategy,
+    alternation: bool,
+    dcfr: bool,
+    rmplus: bool,
+    pcfrp: bool,
     game,
-    N = 1000,
+    N=1000,
 ):
-    t = dh3.CornerDhTraverser()
+    logger.info(
+        f"Training {game.__name__} with avg={avg}, alternation={alternation}, dcfr={dcfr}, rmplus={rmplus}, pcfrp={pcfrp}"
+    )
+    t = game()
     cfr = dh3.CfrSolver(
         t,
-        avg=dh3.AveragingStrategy.LINEAR,
-        alternation=True,
-        dcfr=True,
-        rmplus=True,
-        pcfrp=True,
+        avg=avg,
+        alternation=alternation,
+        dcfr=dcfr,
+        rmplus=rmplus,
+        pcfrp=pcfrp,
     )
     logger.info("Starting CFR")
     # x1, y1 = t.construct_uniform_strategies()
@@ -48,38 +50,34 @@ def train(
             logger.info("expo %s" % expo)
     return expos
 
+
 if __name__ == "__main__":
     project_dir = Path(__file__).parent.resolve()
     (project_dir / "exps").mkdir(exist_ok=True)
-    
+
     executor = submitit.SlurmExecutor(folder=project_dir / "exps")
 
     executor.update_parameters(
-        exclusive=True,
-        mem=0,
-        time=48*60,
+        exclusive=True, nodes=1, mem=0, time=48 * 60, additional_parameters={"partition": "cpu"}
     )
 
     with executor.batch():
-        for (avg, alter, dcfr, rmplus, pcfrp, game) in itertools.product(
-            [dh3.AveragingStrategy.UNIFORM, dh3.AveragingStrategy.LINEAR, dh3.AveragingStrategy.QUADRATIC], 
-            [True, False], # alter
-            [True, False], # dcfr
-            [True, False], # rmplus
-            [True, False], # pcfrp
-            [dh3.CornerDhTraverser, dh3.DhTraverser, dh3.AbruptDhTraverser, dh3.PtttTraverser, dh3.AbruptPtttTraverser]
+        for avg, alter, dcfr, rmplus, pcfrp, game in itertools.product(
+            [
+                dh3.AveragingStrategy.UNIFORM,
+                dh3.AveragingStrategy.LINEAR,
+                dh3.AveragingStrategy.QUADRATIC,
+            ],
+            [True, False],  # alter
+            [True, False],  # dcfr
+            [True, False],  # rmplus
+            [True, False],  # pcfrp
+            [
+                dh3.CornerDhTraverser,
+                dh3.DhTraverser,
+                dh3.AbruptDhTraverser,
+                dh3.PtttTraverser,
+                dh3.AbruptPtttTraverser,
+            ],
         ):
-            executor = submitit.AutoExecutor(folder="submitit_jobs")
-            executor.update_parameters(
-                timeout_min=60 * 24,
-                slurm_partition="dev",
-                cpus_per_task=1,
-                gpus_per_node=1,
-                nodes=1,
-                slurm_mem="32G",
-                dry_run=True,
-            )
             job = executor.submit(train, avg, alter, dcfr, rmplus, pcfrp, game)
-            print(job.job_id)
-
-            print(job)
