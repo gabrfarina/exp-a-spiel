@@ -1,6 +1,6 @@
 #include "averager.h"
 #include "traverser.h"
-
+#include "log.h"
 Averager::Averager(std::shared_ptr<Treeplex> treeplex)
     : treeplex_(treeplex), sum_weights_(0.0), sf_(0.0, treeplex->num_infosets() * 9),
       buf_(0.0, treeplex->num_infosets() * 9) {}
@@ -9,7 +9,7 @@ void Averager::push(ConstRealBuf strategy, const Real weight) {
   CHECK(strategy.size() == sf_.size(), "Strategy size mismatch");
   CHECK(weight >= 0.0, "Averaging weight must be nonnegative (found: %f)",
         weight);
-
+  INFO("Pushing strategy with weight %f", weight);
   treeplex_->validate_strategy(strategy);
 
   sum_weights_ += weight;

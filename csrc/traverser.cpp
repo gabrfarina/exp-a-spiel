@@ -11,7 +11,8 @@
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
-
+#include "sdh_state.h"
+#include "utils.h"
 using std::size_t;
 
 namespace {
@@ -146,7 +147,8 @@ void Treeplex::set_uniform(RealBuf buf) const {
     const uint8_t na = __builtin_popcount(a);
 
     for (uint32_t j = 0; j < 9; ++j) {
-      buf[i * 9 + j] = Real(!!(a & (1 << j))) / na;
+      // !! is important to convert to 0 or 1
+      buf[i * 9 + j] = Real(is_valid(a, j)) / na;
     }
   }
 
@@ -179,10 +181,10 @@ void Treeplex::sf_to_bh(RealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     Real s = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      s += (buf[i * 9 + j] + bh_eps) * (a & (1 << j));
+      s += (buf[i * 9 + j] + bh_eps) * is_valid(a, j);
     }
     for (uint32_t j = 0; j < 9; ++j) {
-      buf[i * 9 + j] = (buf[i * 9 + j] + bh_eps) / s * (a & (1 << j));
+      buf[i * 9 + j] = (buf[i * 9 + j] + bh_eps) / s * is_valid(a, j);
     }
   }
 
@@ -228,16 +230,15 @@ void relu_noramlize(RealBuf buf, const uint32_t mask) {
   constexpr Real SMALL = 1e-10;
   Real s = 0;
   for (uint32_t i = 0; i < buf.size(); ++i) {
-    auto const x = std::max<Real>(buf[i], 0) * (mask & (1 << (i % 9)));
+    auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i % 9);
     s += x;
     buf[i] = x;
   }
   if (s < SMALL) {
     s = 0;
     for (uint32_t i = 0; i < buf.size(); ++i) {
-      const auto x = mask & (1 << (i % 9));
-      buf[i] = x;
-      s += x;
+      buf[i] = is_valid(mask, i % 9);
+      s += buf[i];
     }
   }
   for (uint32_t i = 0; i < buf.size(); ++i) {
@@ -360,8 +361,6 @@ Traverser<T>::Traverser() {
   }
 
   for (auto player : {0, 1}) {
-    std::cout << "Player " << player << " has " << treeplex[player]->num_infosets()
-              << " infosets" << std::endl;
     assert(*treeplex[player]->infoset_keys.begin() == 0);
     assert(treeplex[player]->infoset_keys.size() == treeplex[player]->infosets.size() &&
            treeplex[player]->parent_index.size() == treeplex[player]->infosets.size());
@@ -487,3 +486,4 @@ template struct Traverser<DhState<false>>;
 template struct Traverser<DhState<true>>;
 template struct Traverser<PtttState<false>>;
 template struct Traverser<PtttState<true>>;
+template struct Traverser<SdhState>;
