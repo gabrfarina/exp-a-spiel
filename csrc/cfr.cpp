@@ -13,14 +13,12 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
           std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
           std::valarray<Real>(0., traverser_->treeplex[1]->num_infosets() * 9)},
       bh_{regrets_} {
-  for (auto p : {0, 1}){
+  for (auto p : {0, 1}) {
     traverser_->treeplex[p]->set_uniform(bh_[p]);
     averagers_[p].push(bh_[p], 1);
     auto x = averagers_[p].running_avg();
-    
 
     CHECK(abs(x - bh_[p]).max() < 1e-6, "Averager initialization failed");
-    
   }
 
   n_iters_ = 2;
@@ -98,12 +96,12 @@ template <bool predictive>
   traverser_->treeplex[p]->validate_vector(regrets_[p]);
   traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
 
-
   return ev;
 }
 
 
 template class CfrSolver<DhState<false>>;
 template class CfrSolver<DhState<true>>;
+template class CfrSolver<CornerDhState>;
 template class CfrSolver<PtttState<false>>;
 template class CfrSolver<PtttState<true>>;

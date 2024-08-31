@@ -115,3 +115,17 @@ template <bool abrupt> struct DhState : public BaseState<abrupt> {
     return out;
   }
 };
+
+struct CornerDhState : public DhState<false> {
+  CornerDhState() : DhState<false>() {
+    x[0][0] = (1 << 1) + 1;
+    x[1][8] = (1 << 1) + 1;
+    t[0] = 1;
+    t[1] = 1;
+  }
+
+  uint32_t available_actions() const {
+    uint32_t ans = DhState<false>::available_actions();
+    return ans & (player() == 0 ? 0b011111111 : 0b111111110);
+  }
+};

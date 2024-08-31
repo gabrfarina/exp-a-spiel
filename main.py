@@ -2,18 +2,18 @@ import dh3
 import time
 import logging
 import numpy as np
-logging.basicConfig(format='[%(levelname)s @ %(name)s %(asctime)s] %(message)s')
+
+logging.basicConfig(format="[%(levelname)s @ %(name)s %(asctime)s] %(message)s")
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
-t = dh3.DhTraverser()
-cfr = t.make_cfr_solver(
-    dh3.CfrConf(
-        avg=dh3.AveragingStrategy.LINEAR,
-        alternation=True,
-        dcfr=True,
-        rmplus=True,
-        pcfrp=True,
-    ),
+t = dh3.CornerDhTraverser()
+cfr = dh3.CfrSolver(
+    t,
+    avg=dh3.AveragingStrategy.LINEAR,
+    alternation=True,
+    dcfr=True,
+    rmplus=True,
+    pcfrp=True,
 )
 logger.info("Starting CFR")
 # x1, y1 = t.construct_uniform_strategies()
