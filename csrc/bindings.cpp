@@ -101,7 +101,7 @@ CfrConf make_cfr_conf(py::kwargs args) {
       } else if (key == "pcfrp") {
         conf.pcfrp = item.second.cast<bool>();
       } else {
-        CHECK(false, "Unknown CFR configuration argument %s", item);
+        CHECK(false, "Unknown CFR configuration argument %s", key.c_str());
       }
     }
   }
