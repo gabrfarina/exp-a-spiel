@@ -18,6 +18,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-h4bc722e_7.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.33.1-heb4867d_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2024.7.4-hbcca054_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/cloudpickle-3.0.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cmake-3.30.2-hf8c4bd3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/colorama-0.4.6-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/comm-0.2.2-pyhd8ed1ab_0.conda
@@ -114,6 +115,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/setuptools-72.2.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.16.0-pyh6c4a22f_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.2-pyhd8ed1ab_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/submitit-1.5.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/sysroot_linux-64-2.17-h4a8ded7_16.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.0.1-pyhd8ed1ab_0.tar.bz2
@@ -295,6 +297,23 @@ packages:
   size: 154853
   timestamp: 1720077432978
 - kind: conda
+  name: cloudpickle
+  version: 3.0.0
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/cloudpickle-3.0.0-pyhd8ed1ab_0.conda
+  sha256: 0dfbc1ffa72e7a0882f486c9b1e4e9cccb68cf5c576fe53a89d076c9f1d43754
+  md5: 753d29fe41bb881e4b9c004f0abf973f
+  depends:
+  - python >=3.8
+  license: BSD-3-Clause
+  license_family: BSD
+  purls:
+  - pkg:pypi/cloudpickle?source=hash-mapping
+  size: 24746
+  timestamp: 1697464875382
+- kind: conda
   name: cmake
   version: 3.30.2
   build: hf8c4bd3_0
@@ -396,7 +415,7 @@ packages:
   name: dh3
   version: 0.0.1
   path: .
-  sha256: b74ccc5d945068c7a139c0a03bee37f8d65e0012325d6708eb820d4a58c6d12f
+  sha256: 6b9073120bf32ab0c8f8eacfbf5bc8d82d09aaddf06812287918ebc98c48d87c
   requires_python: '>=3.7'
   editable: true
 - kind: conda
@@ -2088,6 +2107,25 @@ packages:
   - pkg:pypi/stack-data?source=hash-mapping
   size: 26205
   timestamp: 1669632203115
+- kind: conda
+  name: submitit
+  version: 1.5.1
+  build: pyhd8ed1ab_0
+  subdir: noarch
+  noarch: python
+  url: https://conda.anaconda.org/conda-forge/noarch/submitit-1.5.1-pyhd8ed1ab_0.conda
+  sha256: 4a960f4880bd2e1aaf311d9f39441689c1817d716e6710fa5b74e2936a3a1ad3
+  md5: c252b2b2cec8a995e64c38cf869107a4
+  depends:
+  - cloudpickle >=1.2.1
+  - python >=3.6
+  - typing_extensions >=3.7.4.2
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/submitit?source=hash-mapping
+  size: 59308
+  timestamp: 1700812683875
 - kind: conda
   name: sysroot_linux-64
   version: '2.17'

@@ -39,7 +39,6 @@ pip = "*"
 pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
-pybind11-stubgen = "*"
 
 [tool.pixi.pypi-dependencies]
 dh3 = { path = ".", editable = true }
@@ -47,7 +46,9 @@ dh3 = { path = ".", editable = true }
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
 pytest = "*"
-gdb = ">=15.1,<16"
+gdb = ">=15.1"
+pybind11-stubgen = "*"
+submitit = "*"
 
 [tool.pixi.environments]
 default = {features = ["dev"]}
