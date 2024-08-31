@@ -14,7 +14,7 @@ find_package(Boost CONFIG REQUIRED)
 
 set(CMAKE_CXX_FLAGS "-fopenmp -Wall -Wextra -Wfatal-errors -march=native -fPIC")
 cmake_policy(SET CMP0167 NEW)
-set(CMAKE_BUILD_TYPE "Debug")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLIBCXX_DEBUG -DDEBUG -O2 -fno-omit-frame-pointer -g -fvisibility=hidden")
 else()
