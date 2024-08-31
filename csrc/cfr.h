@@ -12,8 +12,6 @@ struct CfrConf {
   bool pcfrp = false;
 
   void validate() const {
-    CHECK(!rmplus || !dcfr, "Cannot use both rmplus and dcfr");
-    CHECK(!pcfrp || !rmplus, "Cannot use both pcfrp and rmplus");
   }
 };
 
