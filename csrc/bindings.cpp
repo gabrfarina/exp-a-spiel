@@ -31,33 +31,7 @@ std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
   CHECK(buf.size() % 9 == 0, "Buffer size must be a multiple of 9");
   return {(py::ssize_t)buf.size() / 9, 9};
 }
-// template <size_t N>
-// auto calculate_strides(std::array<py::ssize_t, N> shape) {
-//   std::array<py::ssize_t, N> stride;
-//   stride[N - 1] = sizeof(Real);
-//   for (ssize_t i = N - 2; i >= 0; --i) {
-//     stride[i] = stride[i + 1] * shape[i + 1];
-//   }
-//   return stride;
-// }
-// template <size_t N>
-// auto to_buffer(std::array<py::ssize_t, N> shape, RealBuf buf) {
-//   CHECK(prod(shape) == buf.size(),
-//         "Shape does not match buffer size (expected %lu; found %lu)",
-//         buf.size(), prod(shape));
-//   return py::buffer_info(buf.data(), sizeof(Real),
-//                          py::format_descriptor<Real>::format(), N, shape,
-//                          calculate_strides(shape));
-// }
-// template <size_t N>
-// auto to_buffer(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
-//   CHECK(prod(shape) == (ssize_t)buf.size(),
-//         "Shape does not match buffer size (expected %lu; found %lu)",
-//         buf.size(), prod(shape));
-//   return py::buffer_info(const_cast<Real *>(buf.data()), sizeof(Real),
-//                          py::format_descriptor<Real>::format(), N, shape,
-//                          calculate_strides(shape), true);
-// }
+
 
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();

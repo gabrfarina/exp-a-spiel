@@ -68,12 +68,20 @@ if __name__ == "__main__":
                 dh3.AbruptPtttTraverser,
             ],
         ):
-            job = executor.submit(
-                train,
+            train(
                 game,
                 avg=avg,
-                alter=alter,
+                alternation=alter,
                 dcfr=dcfr,
                 rmplus=rmplus,
                 pcfrp=pcfrp,
             )
+            # job = executor.submit(
+            #     train,
+            #     game,
+            #     avg=avg,
+            #     alter=alter,
+            #     dcfr=dcfr,
+            #     rmplus=rmplus,
+            #     pcfrp=pcfrp,
+            # )
