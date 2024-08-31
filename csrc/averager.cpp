@@ -1,8 +1,9 @@
 #include "averager.h"
-#include "log.h"
 #include "traverser.h"
+
 Averager::Averager(std::shared_ptr<Treeplex> treeplex)
-    : treeplex_(treeplex), sum_weights_(0.0), sf_(0.0, treeplex->num_infosets() * 9),
+    : treeplex_(treeplex), sum_weights_(0.0),
+      sf_(0.0, treeplex->num_infosets() * 9),
       buf_(0.0, treeplex->num_infosets() * 9) {}
 
 void Averager::push(ConstRealBuf strategy, const Real weight) {
@@ -26,7 +27,6 @@ void Averager::push(ConstRealBuf strategy, const Real weight) {
 std::valarray<Real> Averager::running_avg() const {
   CHECK(sum_weights_ > 0.0, "No data to average");
   std::valarray<Real> out = sf_;
-  treeplex_->validate_vector(out);
   treeplex_->sf_to_bh(out);
   treeplex_->validate_strategy(out);
   return out;
@@ -34,13 +34,13 @@ std::valarray<Real> Averager::running_avg() const {
 
 std::string avg_str(const AveragingStrategy avg) {
   switch (avg) {
-    case UNIFORM:
-      return "uniform";
-    case LINEAR:
-      return "linear";
-    case QUADRATIC:
-      return "quadratic";
-    default:
-      CHECK(false, "Unknown averaging strategy %d", avg);
+  case UNIFORM:
+    return "uniform";
+  case LINEAR:
+    return "linear";
+  case QUADRATIC:
+    return "quadratic";
+  default:
+    CHECK(false, "Unknown averaging strategy %d", avg);
   }
 }

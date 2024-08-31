@@ -4,9 +4,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <iostream>
-
-#include "log.h"
+#include <string>
 
 const uint8_t TIE = 0xee;
 
@@ -113,6 +111,6 @@ inline std::string infoset_desc(uint64_t key) {
     out += (key & 1) ? '*' : '.';
     out += std::to_string(((key & 0b11110) >> 1) - 1);
   }
-  reverse(out.begin(), out.end());
+  std::reverse(out.begin(), out.end());
   return out;
 }

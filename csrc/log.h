@@ -3,8 +3,6 @@
 #include <cinttypes>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <ctime>
 #include <unistd.h>
 
@@ -59,6 +57,6 @@ void _PrintMsSinceEpoch() {
 
 #define CHECK(CONDITION, ...)                                                  \
   {                                                                            \
-    if (!(CONDITION))[[unlikely]] 	                                           \
+    if (!(CONDITION)) [[unlikely]]                                             \
       FATAL(__VA_ARGS__)                                                       \
   }

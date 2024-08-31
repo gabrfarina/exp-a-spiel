@@ -2,7 +2,7 @@
 
 #include "averager.h"
 #include "traverser.h"
-#include "types.h"
+#include "utils.h"
 
 struct CfrConf {
   AveragingStrategy avg = AveragingStrategy::LINEAR;
@@ -12,27 +12,24 @@ struct CfrConf {
   bool pcfrp = false;
 };
 
-template <typename T>
-class CfrSolver {
- public:
+template <typename T> class CfrSolver {
+public:
   CfrSolver(std::shared_ptr<Traverser<T>> traverser, const CfrConf conf);
 
   void step();
+
   ConstRealBuf get_regrets(const uint8_t player) const {
     return regrets_[player];
   }
   ConstRealBuf get_bh(const uint8_t player) const { return bh_[player]; }
-  auto get_avg_bh(const uint8_t player) const {
-    auto x = averagers_[player].running_avg();
-    traverser_->treeplex[player]->validate_strategy(x);
-    return x;
+  std::valarray<Real> get_avg_bh(const uint8_t player) const {
+    return averagers_[player].running_avg();
   }
 
- private:
-  // does not update the gradient
-  void inner_step();
-  template <bool predictive>
-  Real update_regrets(int p);
+private:
+  void inner_step_(); // Warning: this does not update the gradient
+  template <bool predictive> Real update_regrets_(int p);
+
   CfrConf conf_;
   std::shared_ptr<Traverser<T>> traverser_;
   PerPlayer<Averager> averagers_;

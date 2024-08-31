@@ -8,41 +8,20 @@ import submitit
 from pathlib import Path
 
 
-
-def train(
-    avg: dh3.AveragingStrategy,
-    alternation: bool,
-    dcfr: bool,
-    rmplus: bool,
-    pcfrp: bool,
-    game,
-    N=1000,
-):
+def train(game, N=1000, **cfr_config):
     logging.basicConfig(format="[%(levelname)s][%(name)s][%(asctime)s] %(message)s")
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
 
     print(flush=True)
-    logger.info(
-        f"Training {game.__name__} with avg={avg}, alternation={alternation}, dcfr={dcfr}, rmplus={rmplus}, pcfrp={pcfrp}"
-    )
+    logger.info(f"Training {game.__name__} with %s", cfr_config)
     time.sleep(1)
     print(flush=True)
     t = game()
-    cfr = dh3.CfrSolver(
-        t,
-        avg=avg,
-        alternation=alternation,
-        dcfr=dcfr,
-        rmplus=rmplus,
-        pcfrp=pcfrp,
-    )
+    cfr = dh3.CfrSolver(t, **cfr_config)
     logger.info("Starting CFR")
-    # x1, y1 = t.construct_uniform_strategies()
+
     x2, y2 = cfr.avg_bh()
-    # logger.info("delta: %s, %s" % (np.max(np.abs(x1 - x2)), np.max(np.abs(y1 - y2))))
-    # logger.info("uniform expo %s" % t.ev_and_exploitability(*t.construct_uniform_strategies()))
-    # logger.info("cfr init expo %s" % t.ev_and_exploitability(*cfr.avg_bh()))
     expos = []
     for i in range(1, N + 1):
         cfr.step()
@@ -63,7 +42,11 @@ if __name__ == "__main__":
     executor = submitit.SlurmExecutor(folder=project_dir / "exps")
 
     executor.update_parameters(
-        exclusive=True, nodes=1, mem=0, time=48 * 60, additional_parameters={"partition": "cpu"}
+        exclusive=True,
+        nodes=1,
+        mem=0,
+        time=48 * 60,
+        additional_parameters={"partition": "cpu"},
     )
 
     with executor.batch():
@@ -85,4 +68,12 @@ if __name__ == "__main__":
                 dh3.AbruptPtttTraverser,
             ],
         ):
-            job = executor.submit(train, avg, alter, dcfr, rmplus, pcfrp, game)
+            job = executor.submit(
+                train,
+                game,
+                avg=avg,
+                alter=alter,
+                dcfr=dcfr,
+                rmplus=rmplus,
+                pcfrp=pcfrp,
+            )

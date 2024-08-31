@@ -1,4 +1,5 @@
 #pragma once
+
 #include <array>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
@@ -7,7 +8,7 @@
 #include <vector>
 
 #include "averager.h"
-#include "types.h"
+#include "utils.h"
 
 struct InfosetMetadata {
   uint32_t legal_actions;
@@ -21,8 +22,10 @@ struct InfosetMetadata {
 
 // Maps from infoset to legal action mask
 using InfosetMap = boost::unordered_flat_map<uint64_t, InfosetMetadata>;
+
 void relu_noramlize(RealBuf buf, const uint32_t mask);
 Real dot(ConstRealBuf a, ConstRealBuf b);
+
 struct Treeplex {
   InfosetMap infosets;
   std::vector<uint64_t> infoset_keys;
@@ -36,7 +39,8 @@ struct Treeplex {
   void bh_to_sf(RealBuf buf) const;
   void sf_to_bh(RealBuf buf) const;
   Real br(RealBuf grad, RealBuf strat = std::span<Real>()) const;
-  // inplace relu + renomalize, adds a small epsilon for stability (numeric and strategic) to the regrets
+  // inplace relu + renomalize, adds a small epsilon for stability (numeric and
+  // strategic) to the regrets
   void regret_to_bh(RealBuf buf) const;
 };
 

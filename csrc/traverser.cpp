@@ -1,18 +1,17 @@
 #include "traverser.h"
 
-#include <omp.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <omp.h>
 
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
-#include "types.h"
 #include "utils.h"
+
 using std::size_t;
 
 namespace {
@@ -246,8 +245,6 @@ void relu_noramlize(RealBuf buf, const uint32_t mask) {
   for (uint32_t i = 0; i < buf.size(); ++i) {
     buf[i] /= s;
   }
-
-
 }
 
 Real dot(ConstRealBuf a, ConstRealBuf b) {

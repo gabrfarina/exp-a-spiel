@@ -1,10 +1,12 @@
+#include <limits>
+
 #include "cfr.h"
 #include "dh_state.h"
 #include "pttt_state.h"
 #include "traverser.h"
 #include "utils.h"
-#include <limits>
-template<typename T>
+
+template <typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
                         const CfrConf conf)
     : conf_(conf), traverser_(traverser),
@@ -24,27 +26,25 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
   n_iters_ = 2;
 }
 
-template<typename T>
-void CfrSolver<T>::step() {
+template <typename T> void CfrSolver<T>::step() {
   traverser_->compute_gradients({bh_[0], bh_[1]});
-  inner_step();
+  inner_step_();
   if (!conf_.alternation) {
-    inner_step();
+    inner_step_();
   }
 }
-template<typename T>
-void CfrSolver<T>::inner_step() {
+
+template <typename T> void CfrSolver<T>::inner_step_() {
   const auto p = n_iters_ % 2;
   const auto p_iters = n_iters_ / 2 + 1;
   if (conf_.pcfrp) {
-    update_regrets<true>(p);
+    update_regrets_<true>(p);
   } else {
-    update_regrets<false>(p);
+    update_regrets_<false>(p);
   }
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters));
-  Real neg_discount = conf_.rmplus ? 0.0 : conf_.dcfr ? 0.5
-                                                      : 1.0;
+  Real neg_discount = conf_.rmplus ? 0.0 : conf_.dcfr ? 0.5 : 1.0;
   Real pos_discount = 1.0;
   for (auto &i : regrets_[p])
     if (i > 0)
@@ -54,9 +54,9 @@ void CfrSolver<T>::inner_step() {
   ++n_iters_;
 }
 
-template<typename T>
-template<bool predictive>
-Real CfrSolver<T>::update_regrets(int p) {
+template <typename T>
+template <bool predictive>
+Real CfrSolver<T>::update_regrets_(int p) {
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   traverser_->treeplex[p]->validate_vector(regrets_[p]);
   traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
@@ -69,7 +69,8 @@ Real CfrSolver<T>::update_regrets(int p) {
     Real max_val = std::numeric_limits<Real>::lowest();
 
     for (uint32_t j = 0; j < 9; ++j) {
-      if (is_valid(mask, j) && (traverser_->gradients[p][i * 9 + j] > max_val)) {
+      if (is_valid(mask, j) &&
+          (traverser_->gradients[p][i * 9 + j] > max_val)) {
         max_val = traverser_->gradients[p][i * 9 + j];
       }
     }

@@ -18,8 +18,8 @@
 #include "log.h"
 #include "pttt_state.h"
 #include "traverser.h"
-#include "types.h"
 #include "utils.h"
+
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
 
