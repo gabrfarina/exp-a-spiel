@@ -16,10 +16,8 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
     traverser_->treeplex[p]->set_uniform(bh_[p]);
     averagers_[p].push(bh_[p], 1);
     auto x = averagers_[p].running_avg();
-    
 
     CHECK(abs(x - bh_[p]).max() < 1e-6, "Averager initialization failed");
-    
   }
 
   n_iters_ = 2;
@@ -94,7 +92,6 @@ template <typename T> Real CfrSolver<T>::update_regrets_pcfrp(int p) {
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   traverser_->treeplex[p]->validate_vector(regrets_[p]);
   traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
-
 
   return ev;
 }

@@ -69,15 +69,6 @@ auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
 
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();
-std::string infoset_desc(uint64_t key) {
-  std::string out = "";
-  for (; key; key >>= 5) {
-    out += (key & 1) ? '*' : '.';
-    out += std::to_string(((key & 0b11110) >> 1) - 1);
-  }
-  reverse(out.begin(), out.end());
-  return out;
-}
 } // namespace
 
 struct EvExplPy {

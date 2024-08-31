@@ -2,10 +2,11 @@ import dh3
 import time
 import logging
 import numpy as np
-logging.basicConfig(format='[%(levelname)s @ %(name)s %(asctime)s] %(message)s')
+
+logging.basicConfig(format="[%(levelname)s @ %(name)s %(asctime)s] %(message)s")
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
-t = dh3.DhTraverser()
+t = dh3.CornerDhTraverser()
 cfr = t.make_cfr_solver(
     dh3.CfrConf(
         avg=dh3.AveragingStrategy.LINEAR,

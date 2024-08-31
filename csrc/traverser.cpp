@@ -11,7 +11,7 @@
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
-#include "sdh_state.h"
+#include "types.h"
 #include "utils.h"
 using std::size_t;
 
@@ -274,9 +274,19 @@ template <typename T> Traverser<T>::Traverser() {
   for (auto p : {0, 1}) {
     treeplex[p] = std::make_shared<Treeplex>();
     treeplex[p]->infosets.reserve(5000000);
+  }
 
-    treeplex[p]->infosets[0] =
-        InfosetMetadata{.legal_actions = 0b111111111, .infoset_id = UINT32_MAX};
+  { // Insert data for root infoset
+    T root;
+    treeplex[0]->infosets[root.get_infoset()] = InfosetMetadata{
+        .legal_actions = root.available_actions(), .infoset_id = UINT32_MAX};
+    uint8_t a = 0;
+    for (a = 0; a < 9 && !is_valid(root.available_actions(), a); ++a)
+      ;
+    root.next(a);
+    assert(root.player() == 1);
+    treeplex[1]->infosets[root.get_infoset()] = InfosetMetadata{
+        .legal_actions = root.available_actions(), .infoset_id = UINT32_MAX};
   }
 
   INFO("discovering infosets (num threads: %d)...", omp_get_max_threads());
@@ -286,16 +296,16 @@ template <typename T> Traverser<T>::Traverser() {
     T s{};
     {
       const uint8_t a = i % 9;
-      if (!(s.available_actions() & (1 << a))) {
+      assert(treeplex[0]->infosets.count(s.get_infoset()));
+      if (!is_valid(s.available_actions(), a))
         continue;
-      }
       s.next(a);
     }
     {
       const uint8_t a = i / 9;
-      if (!(s.available_actions() & (1 << a))) {
+      assert(s.player() == 1 && treeplex[1]->infosets.count(s.get_infoset()));
+      if (!is_valid(s.available_actions(), a))
         continue;
-      }
       s.next(a);
     }
 
@@ -320,15 +330,28 @@ template <typename T> Traverser<T>::Traverser() {
        count / 1e9);
 
 #ifdef DEBUG
-  for (int p = 0; p < 2; ++p) {
-    INFO("checking infosets of player %d...", p + 1);
+  PerPlayer<uint64_t> root_infoset_keys = {0, 0};
+  root_infoset_keys[0] = T{}.get_infoset();
+  {
+    T state;
+    uint8_t a = 0;
+    for (a = 0; a < 9 && !is_valid(state.available_actions(), a); ++a)
+      ;
+    state.next(a);
+    root_infoset_keys[1] = state.get_infoset();
+  }
+  INFO("root infosets: %ld, %ld", root_infoset_keys[0], root_infoset_keys[1]);
+  for (auto p : {0, 1}) {
+    INFO("checking infosets of player %d...", p);
     for (const auto &it : treeplex[p]->infosets) {
       const uint64_t infoset = it.first;
-      if (infoset) {
+      if (infoset != root_infoset_keys[p]) {
         const uint64_t parent = parent_infoset(infoset);
         CHECK(parent <= infoset, "Parent infoset is greater than child");
         CHECK(treeplex[p]->infosets.count(parent),
-              "Parent infoset %ld of %ld not found", parent, infoset);
+              "Parent infoset %ld (%s) of %ld (%s) not found", parent,
+              infoset_desc(parent).c_str(), infoset,
+              infoset_desc(infoset).c_str());
         CHECK(treeplex[p]->infosets[parent].legal_actions &
                   (1u << parent_action(infoset)),
               "Parent action is illegal");
@@ -343,7 +366,6 @@ template <typename T> Traverser<T>::Traverser() {
     treeplex[p]->infoset_keys.reserve(treeplex[p]->infosets.size());
     treeplex[p]->parent_index.resize(treeplex[p]->infosets.size());
     treeplex[p]->legal_actions.resize(treeplex[p]->infosets.size());
-    treeplex[p]->parent_index[0] = UINT32_MAX;
 
     for (auto &it : treeplex[p]->infosets) {
       treeplex[p]->infoset_keys.push_back(it.first);
@@ -366,7 +388,6 @@ template <typename T> Traverser<T>::Traverser() {
   }
 
   for (auto player : {0, 1}) {
-    assert(*treeplex[player]->infoset_keys.begin() == 0);
     assert(treeplex[player]->infoset_keys.size() ==
                treeplex[player]->infosets.size() &&
            treeplex[player]->parent_index.size() ==
@@ -405,17 +426,23 @@ void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
   uint32_t num_finished = 0;
 #pragma omp parallel for
   for (unsigned i = 0; i < 9 * 9; ++i) {
+    PerPlayer<uint32_t> parent_seqs = {0, 0};
     T s{};
-    if (!(s.available_actions() & (1 << (i % 9))) ||
-        !(s.available_actions() & (1 << (i / 9)))) {
+
+    if (!is_valid(s.available_actions(), i % 9))
       continue;
-    }
-    assert(!s.get_infoset());
+    assert(s.player() == 0);
+    parent_seqs[0] =
+        treeplex[0]->infosets.at(s.get_infoset()).infoset_id * 9 + (i % 9);
     s.next(i % 9); // pl1's move
-    assert(!s.get_infoset());
+
+    if (!is_valid(s.available_actions(), i / 9))
+      continue;
+    assert(s.player() == 1);
+    parent_seqs[1] =
+        treeplex[1]->infosets.at(s.get_infoset()).infoset_id * 9 + (i / 9);
     s.next(i / 9); // pl2's move
 
-    const PerPlayer<uint32_t> parent_seqs = {i % 9, i / 9};
     const PerPlayer<RealBuf> thread_gradients = {bufs_[0][i / 9],
                                                  bufs_[1][i % 9]};
     ::compute_gradients_thread(s, parent_seqs, treeplex,
@@ -500,4 +527,3 @@ template struct Traverser<DhState<true>>;
 template struct Traverser<CornerDhState>;
 template struct Traverser<PtttState<false>>;
 template struct Traverser<PtttState<true>>;
-template struct Traverser<SdhState>;
