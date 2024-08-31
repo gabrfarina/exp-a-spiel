@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 dh3.AbruptDhTraverser,
                 dh3.PtttTraverser,
                 dh3.AbruptPtttTraverser,
-            ]
+            ],
             [
                 dh3.CfrConf.PCFRP,
                 dh3.CfrConf.DCFR,
