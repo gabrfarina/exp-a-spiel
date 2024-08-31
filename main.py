@@ -6,7 +6,7 @@ import submitit
 from pathlib import Path
 
 
-def train(game, N=1000, **cfr_config):
+def train(game, N=1000, cfr_config=dh3.CfrConf()):
     logging.basicConfig(format="[%(levelname)s][%(name)s][%(asctime)s] %(message)s")
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
@@ -16,7 +16,7 @@ def train(game, N=1000, **cfr_config):
     time.sleep(1)
     print(flush=True)
     t = game()
-    cfr = dh3.CfrSolver(t, **cfr_config)
+    cfr = dh3.CfrSolver(t, cfr_config)
     logger.info("Starting CFR")
 
     x2, y2 = cfr.avg_bh()
@@ -27,7 +27,7 @@ def train(game, N=1000, **cfr_config):
         x1, y1 = cfr.avg_bh()
         if i % 10 == 0 or i == N:
             expo = t.ev_and_exploitability(*cfr.avg_bh())
-            expos.append(expo)
+            expos.append({"expo": expo.expl, "ev0": expo.ev0})
             logger.info("expo %s" % expo)
             print(flush=True)
     return expos
@@ -50,14 +50,12 @@ if __name__ == "__main__":
     with executor.batch():
         for avg, alter, dcfr, rmplus, pcfrp, game in itertools.product(
             [
-                dh3.AveragingStrategy.UNIFORM,
-                dh3.AveragingStrategy.LINEAR,
                 dh3.AveragingStrategy.QUADRATIC,
             ],
-            [True, False],  # alter
-            [True, False],  # dcfr
-            [True, False],  # rmplus
-            [True, False],  # pcfrp
+            [True],  # alter
+            [True],  # dcfr
+            [False],  # rmplus
+            [False],  # pcfrp
             [
                 dh3.CornerDhTraverser,
                 dh3.DhTraverser,
@@ -66,20 +64,10 @@ if __name__ == "__main__":
                 dh3.AbruptPtttTraverser,
             ],
         ):
-            train(
+            job = executor.submit(
+                train,
                 game,
-                avg=avg,
-                alternation=alter,
-                dcfr=dcfr,
-                rmplus=rmplus,
-                pcfrp=pcfrp,
+                dh3.CfrConf(
+                    avg=avg, alter=alter, dcfr=dcfr, rmplus=rmplus, pcfrp=pcfrp
+                ),
             )
-            # job = executor.submit(
-            #     train,
-            #     game,
-            #     avg=avg,
-            #     alter=alter,
-            #     dcfr=dcfr,
-            #     rmplus=rmplus,
-            #     pcfrp=pcfrp,
-            # )

@@ -43,45 +43,7 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   return NdArray(shape, buf.data());
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
-AveragingStrategy to_avg(const py::handle &item) {
-  if (item.get_type() == py::type::of<AveragingStrategy>()) {
-    return item.cast<AveragingStrategy>();
-  } else {
-    const std::string avg = item.cast<std::string>();
-    if (avg == "uniform") {
-      return AveragingStrategy::UNIFORM;
-    } else if (avg == "linear") {
-      return AveragingStrategy::LINEAR;
-    } else if (avg == "quadratic") {
-      return AveragingStrategy::QUADRATIC;
-    } else {
-      CHECK(false, "Unknown averaging strategy %s", avg.c_str());
-    }
-  }
-}
-CfrConf make_cfr_conf(py::kwargs args) {
-  CfrConf conf;
-  if (args) {
-    for (auto item : args) {
-      const std::string key = item.first.cast<std::string>();
-      if (key == "avg") {
-        conf.avg = to_avg(item.second);
-      } else if (key == "alternation") {
-        conf.alternation = item.second.cast<bool>();
-      } else if (key == "dcfr") {
-        conf.dcfr = item.second.cast<bool>();
-      } else if (key == "rmplus") {
-        conf.rmplus = item.second.cast<bool>();
-      } else if (key == "pcfrp") {
-        conf.pcfrp = item.second.cast<bool>();
-      } else {
-        CHECK(false, "Unknown CFR configuration argument %s", key.c_str());
-      }
-    }
-  }
-  return conf;
-}
-}  // namespace
+} // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -224,15 +186,13 @@ void register_types(py::module &m, const std::string &prefix) {
           nullptr)
       .def("new_averager", &Traverser<T>::new_averager)
       .def("new_cfr_solver",
-           [](const std::shared_ptr<Traverser<T>> t, py::kwargs conf) {
-             return std::make_shared<CfrSolver<T>>(t, make_cfr_conf(conf));
+           [](const std::shared_ptr<Traverser<T>> t, CfrConf conf) {
+             return std::make_shared<CfrSolver<T>>(t, conf);
            });
 
   py::class_<CfrSolver<T>>(m, (prefix + "Solver").c_str())
-      .def(py::init([](const std::shared_ptr<Traverser<T>> t,
-                       py::kwargs conf) -> CfrSolver<T> {
-        return CfrSolver<T>(t, make_cfr_conf(conf));
-      }))
+      .def(py::init([](const std::shared_ptr<Traverser<T>> t, CfrConf conf)
+                        -> CfrSolver<T> { return CfrSolver<T>(t, conf); }))
       .def("step", &CfrSolver<T>::step)
       .def("avg_bh", [](const CfrSolver<T> &solver) {
         return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
@@ -241,8 +201,9 @@ void register_types(py::module &m, const std::string &prefix) {
 
   m.def(
       "CfrSolver",
-      [](const std::shared_ptr<Traverser<T>> t,
-         py::kwargs conf) -> CfrSolver<T> { return {t, make_cfr_conf(conf)}; });
+      [](const std::shared_ptr<Traverser<T>> t, CfrConf conf) -> CfrSolver<T> {
+        return {t, conf};
+      });
 }
 
 PYBIND11_MODULE(pydh3, m) {
@@ -254,16 +215,16 @@ PYBIND11_MODULE(pydh3, m) {
       .def("__repr__", [](const EvExplPy &ev) {
         std::ostringstream ss;
         ss << std::fixed << std::showpoint << std::setprecision(4)
-           << std::setw(5) << "EvExpl(ev0=" << ev.ev0 << "), expl=("
-           << ev.expl[0] << ")";
+           << std::setw(5) << "EvExpl(ev0=" << ev.ev0 << ", expl=["
+           << ev.expl[0] << ", " << ev.expl[1] << "])";
         return ss.str();
       });
+
   py::class_<Averager>(m, "Averager")
       .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
       .def("running_avg",
            [](const Averager &a) { return to_ndarray(a.running_avg()); })
       .def("clear", &Averager::clear);
-  ;
 
   py::enum_<AveragingStrategy>(m, "AveragingStrategy")
       .value("UNIFORM", AveragingStrategy::UNIFORM)
