@@ -1,6 +1,7 @@
+#include "cfr.h"
+
 #include <limits>
 
-#include "cfr.h"
 #include "dh_state.h"
 #include "pttt_state.h"
 #include "traverser.h"
@@ -9,7 +10,8 @@
 template <typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
                         const CfrConf conf)
-    : conf_(conf), traverser_(traverser),
+    : conf_(conf),
+      traverser_(traverser),
       averagers_{traverser_->new_averager(0), traverser_->new_averager(1)},
       regrets_{
           std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
@@ -25,7 +27,8 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
   n_iters_ = 2;
 }
 
-template <typename T> void CfrSolver<T>::step() {
+template <typename T>
+void CfrSolver<T>::step() {
   traverser_->compute_gradients({bh_[0], bh_[1]});
   inner_step_();
   if (!conf_.alternation) {
@@ -33,7 +36,10 @@ template <typename T> void CfrSolver<T>::step() {
   }
 }
 
-template <typename T> void CfrSolver<T>::inner_step_() {
+template <typename T>
+void CfrSolver<T>::inner_step_() {
+  constexpr double dcfr_alpha = 0.5;
+  constexpr double dcfr_beta = 1.0;
   const auto p = n_iters_ % 2;
   const auto p_iters = n_iters_ / 2;
 
@@ -46,9 +52,12 @@ template <typename T> void CfrSolver<T>::inner_step_() {
   // + 1 so we take into account the initial uniform strategy
   averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters + 1));
 
-  const Real neg_discount = conf_.rmplus ? 0. : conf_.dcfr ? 0.5 : 1.;
+  const Real neg_discount = conf_.rmplus ? 0.
+                            : conf_.dcfr
+                                ? (1. - (1. + std::pow(p_iters, dcfr_beta)))
+                                : 1.;
   const Real pos_discount =
-      conf_.dcfr ? (1. - 1. / (1. + std::pow(p_iters, 1.5))) : 1.;
+      conf_.dcfr ? (1. - 1. / (1. + std::pow(p_iters, dcfr_alpha))) : 1.;
 
   for (auto &i : regrets_[p])
     if (i > 0)
