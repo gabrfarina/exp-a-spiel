@@ -23,9 +23,6 @@ struct InfosetMetadata {
 // Maps from infoset to legal action mask
 using InfosetMap = boost::unordered_flat_map<uint64_t, InfosetMetadata>;
 
-void relu_noramlize(RealBuf buf, const uint32_t mask);
-Real dot(ConstRealBuf a, ConstRealBuf b);
-
 struct Treeplex {
   InfosetMap infosets;
   std::vector<uint64_t> infoset_keys;

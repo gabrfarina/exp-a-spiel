@@ -15,12 +15,11 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
           std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
           std::valarray<Real>(0., traverser_->treeplex[1]->num_infosets() * 9)},
       bh_{regrets_} {
+  conf_.validate();
+
   for (auto p : {0, 1}) {
     traverser_->treeplex[p]->set_uniform(bh_[p]);
-    averagers_[p].push(bh_[p], 1);
-    auto x = averagers_[p].running_avg();
-
-    CHECK(abs(x - bh_[p]).max() < 1e-6, "Averager initialization failed");
+    averagers_[p].push(bh_[p], 1.);
   }
 
   n_iters_ = 2;
@@ -36,7 +35,8 @@ template <typename T> void CfrSolver<T>::step() {
 
 template <typename T> void CfrSolver<T>::inner_step_() {
   const auto p = n_iters_ % 2;
-  const auto p_iters = n_iters_ / 2 + 1;
+  const auto p_iters = n_iters_ / 2;
+
   if (conf_.pcfrp) {
     update_regrets_<true>(p);
   } else {
@@ -44,8 +44,11 @@ template <typename T> void CfrSolver<T>::inner_step_() {
   }
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters));
-  Real neg_discount = conf_.rmplus ? 0.0 : conf_.dcfr ? 0.5 : 1.0;
-  Real pos_discount = 1.0;
+
+  const Real neg_discount = conf_.rmplus ? 0. : conf_.dcfr ? 0.5 : 1.;
+  const Real pos_discount =
+      conf_.dcfr ? (1. - 1. / (1. + std::pow(p_iters, 1.5))) : 1.;
+
   for (auto &i : regrets_[p])
     if (i > 0)
       i *= pos_discount;
@@ -82,8 +85,8 @@ Real CfrSolver<T>::update_regrets_(int p) {
         bh_[p][i * 9 + j] = regrets_[p][i * 9 + j];
       }
     }
-    relu_noramlize(std::span(bh_[p]).subspan(i * 9, 9), mask);
-    if (predictive)
+    relu_normalize(std::span(bh_[p]).subspan(i * 9, 9), mask);
+    if constexpr (predictive)
       ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
                std::span(bh_[p]).subspan(i * 9, 9));
 

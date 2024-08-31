@@ -10,6 +10,11 @@ struct CfrConf {
   bool dcfr = false;
   bool rmplus = false;
   bool pcfrp = false;
+
+  void validate() const {
+    CHECK(!rmplus || !dcfr, "Cannot use both rmplus and dcfr");
+    CHECK(!pcfrp || !rmplus, "Cannot use both pcfrp and rmplus");
+  }
 };
 
 template <typename T> class CfrSolver {

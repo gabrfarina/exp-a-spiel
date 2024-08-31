@@ -10,6 +10,7 @@
 using Real = double;
 using RealBuf = std::span<Real>;
 using ConstRealBuf = std::span<const Real>;
+
 template <typename T> using PerPlayer = std::array<T, 2>;
 template <typename T> PerPlayer<T> make_per_player(const T &t, const T &u) {
   return {t, u};
@@ -48,4 +49,34 @@ template <std::ranges::contiguous_range T>
   requires std::ranges::sized_range<T>
 auto sum(const T &x) {
   return sum(std::span<const std::ranges::range_value_t<T>>(x));
+}
+
+inline void relu_normalize(RealBuf buf, const uint32_t mask) {
+  constexpr Real SMALL = 1e-10;
+  Real s = 0;
+  for (uint32_t i = 0; i < buf.size(); ++i) {
+    auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i);
+    s += x;
+    buf[i] = x;
+  }
+  if (s < SMALL) {
+    s = 0;
+    for (uint32_t i = 0; i < buf.size(); ++i) {
+      buf[i] = is_valid(mask, i);
+      s += buf[i];
+    }
+  }
+  for (uint32_t i = 0; i < buf.size(); ++i) {
+    buf[i] /= s;
+  }
+}
+
+inline Real dot(ConstRealBuf a, ConstRealBuf b) {
+  Real s = 0;
+  CHECK(a.size() == b.size(), "Vector size mismatch (expected %ld, found %ld)",
+        a.size(), b.size());
+  for (uint32_t i = 0; i < a.size(); ++i) {
+    s += a[i] * b[i];
+  }
+  return s;
 }

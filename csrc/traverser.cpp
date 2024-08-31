@@ -227,35 +227,6 @@ Real Treeplex::br(RealBuf buf, RealBuf strat) const {
 
   return max_val;
 }
-void relu_noramlize(RealBuf buf, const uint32_t mask) {
-  constexpr Real SMALL = 1e-10;
-  Real s = 0;
-  for (uint32_t i = 0; i < buf.size(); ++i) {
-    auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i);
-    s += x;
-    buf[i] = x;
-  }
-  if (s < SMALL) {
-    s = 0;
-    for (uint32_t i = 0; i < buf.size(); ++i) {
-      buf[i] = is_valid(mask, i);
-      s += buf[i];
-    }
-  }
-  for (uint32_t i = 0; i < buf.size(); ++i) {
-    buf[i] /= s;
-  }
-}
-
-Real dot(ConstRealBuf a, ConstRealBuf b) {
-  Real s = 0;
-  CHECK(a.size() == b.size(), "Vector size mismatch (expected %ld, found %ld)",
-        a.size(), b.size());
-  for (uint32_t i = 0; i < a.size(); ++i) {
-    s += a[i] * b[i];
-  }
-  return s;
-}
 
 void Treeplex::regret_to_bh(RealBuf buf) const {
   validate_vector(buf);
@@ -263,7 +234,7 @@ void Treeplex::regret_to_bh(RealBuf buf) const {
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
-    relu_noramlize(buf.subspan(i * 9, 9), a);
+    relu_normalize(buf.subspan(i * 9, 9), a);
   }
 
   validate_strategy(buf);

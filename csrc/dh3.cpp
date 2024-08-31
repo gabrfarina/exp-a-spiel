@@ -21,7 +21,7 @@ int main() {
   {
     std::vector<Real> x = {3, 2, 1};
     uint32_t mask = 0b111;
-    relu_noramlize(x, mask);
+    relu_normalize(x, mask);
     std::cout << "relu_noramlize: ";
     for (auto i : x) {
       std::cout << i << " ";
@@ -38,4 +38,4 @@ int main() {
   traverser.treeplex[1]->set_uniform(strategies[1]);
 
   traverser.ev_and_exploitability({strategies[0], strategies[1]});
-} 
+}
