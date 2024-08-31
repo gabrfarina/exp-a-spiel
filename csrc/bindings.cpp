@@ -26,6 +26,7 @@ using NdArray = py::array_t<Real, py::array::c_style>;
 RealBuf to_span(NdArray &arr) {
   return RealBuf(arr.mutable_data(), arr.size());
 }
+
 std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
   CHECK(buf.size() % 9 == 0, "Buffer size must be a multiple of 9");
   return {(py::ssize_t)buf.size() / 9, 9};
@@ -58,6 +59,9 @@ std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
 //                          calculate_strides(shape), true);
 // }
 
+namespace {
+constexpr CfrConf default_cfr_args = CfrConf();
+
 template <size_t N>
 auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   CHECK(prod(shape) == (ssize_t)buf.size(),
@@ -67,8 +71,42 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
 
-namespace {
-constexpr CfrConf default_cfr_args = CfrConf();
+CfrConf make_cfr_conf(py::kwargs args) {
+  CfrConf conf;
+  if (args) {
+    for (auto item : args) {
+      const std::string key = item.first.cast<std::string>();
+      if (key == "avg") {
+        if (item.second.get_type() == py::type::of<AveragingStrategy>()) {
+          conf.avg = item.second.cast<AveragingStrategy>();
+        } else {
+          const std::string avg = item.second.cast<std::string>();
+          if (avg == "uniform") {
+            conf.avg = AveragingStrategy::UNIFORM;
+          } else if (avg == "linear") {
+            conf.avg = AveragingStrategy::LINEAR;
+          } else if (avg == "quadratic") {
+            conf.avg = AveragingStrategy::QUADRATIC;
+          } else {
+            CHECK(false, "Unknown averaging strategy %s", avg.c_str());
+          }
+        }
+        conf.avg = item.second.cast<AveragingStrategy>();
+      } else if (key == "alternation") {
+        conf.alternation = item.second.cast<bool>();
+      } else if (key == "dcfr") {
+        conf.dcfr = item.second.cast<bool>();
+      } else if (key == "rmplus") {
+        conf.rmplus = item.second.cast<bool>();
+      } else if (key == "pcfrp") {
+        conf.pcfrp = item.second.cast<bool>();
+      } else {
+        CHECK(false, "Unknown CFR configuration argument %s", item);
+      }
+    }
+  }
+  return conf;
+}
 } // namespace
 
 struct EvExplPy {
@@ -162,7 +200,6 @@ void register_types(py::module &m, const std::string &prefix) {
              return traverser.ev_and_exploitability(
                  {to_span(strat0), to_span(strat1)});
            })
-      .def("get_averager", &Traverser<T>::new_averager)
       .def("infoset_desc",
            [](const Traverser<T> &traverser, const uint8_t p,
               const uint32_t row) -> std::string {
@@ -211,22 +248,28 @@ void register_types(py::module &m, const std::string &prefix) {
             return traverser.treeplex[1]->num_infosets();
           },
           nullptr)
-      .def("make_cfr_solver",
-           [](const std::shared_ptr<Traverser<T>> t, const CfrConf conf) {
-             return std::make_shared<CfrSolver<T>>(t, conf);
+      .def("new_averager", &Traverser<T>::new_averager)
+      .def("new_cfr_solver",
+           [](const std::shared_ptr<Traverser<T>> t, py::kwargs conf) {
+             return std::make_shared<CfrSolver<T>>(t, make_cfr_conf(conf));
            });
 
-  py::class_<CfrSolver<T>, std::shared_ptr<CfrSolver<T>>>(
-      m, (prefix + "Solver").c_str())
+  py::class_<CfrSolver<T>>(m, (prefix + "Solver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t,
-                       const CfrConf conf) -> CfrSolver<T> {
-        return CfrSolver<T>(t, conf);
+                       py::kwargs conf) -> CfrSolver<T> {
+        return CfrSolver<T>(t, make_cfr_conf(conf));
       }))
       .def("step", &CfrSolver<T>::step)
       .def("avg_bh", [](const CfrSolver<T> &solver) {
         return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
                                to_ndarray(solver.get_avg_bh(1)));
       });
+
+  m.def("CfrSolver",
+        [](const std::shared_ptr<Traverser<T>> t,
+           py::kwargs conf) -> CfrSolver<T> {
+          return {t, make_cfr_conf(conf)};
+        });
 }
 
 PYBIND11_MODULE(pydh3, m) {
