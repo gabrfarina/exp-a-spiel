@@ -43,7 +43,8 @@ template <typename T> void CfrSolver<T>::inner_step_() {
     update_regrets_<false>(p);
   }
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters));
+  // + 1 so we take into account the initial uniform strategy
+  averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters + 1));
 
   const Real neg_discount = conf_.rmplus ? 0. : conf_.dcfr ? 0.5 : 1.;
   const Real pos_discount =
