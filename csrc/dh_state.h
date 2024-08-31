@@ -115,3 +115,12 @@ template <bool abrupt> struct DhState : public BaseState<abrupt> {
     return out;
   }
 };
+
+struct CornerDhState : public DhState<false> {
+  CornerDhState() : DhState<false>() {
+    x[0][0] = (1 << 1) + 1;
+    x[1][8] = (1 << 1) + 1;
+    t[0] = 2;
+    t[1] = 2;
+  }
+};

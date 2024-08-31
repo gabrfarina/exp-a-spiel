@@ -58,8 +58,8 @@ void compute_gradients_thread(
     T root, const PerPlayer<uint32_t> init_parent_seqs,
     const PerPlayer<std::shared_ptr<Treeplex>> treeplex,
     PerPlayer<ConstRealBuf> sf_strategies, PerPlayer<RealBuf> gradients) {
-  std::tuple<T,                   // Current state
-             PerPlayer<uint32_t>  // Parent seqs
+  std::tuple<T,                  // Current state
+             PerPlayer<uint32_t> // Parent seqs
              >
       stack[100];
   stack[0] = {root, init_parent_seqs};
@@ -87,13 +87,13 @@ void compute_gradients_thread(
         }
       }
     } else if (w == 0 || w == 1) {
-      const Real sign = -2.0 * w + 1.0;  // 1 if w == 0 else -1
+      const Real sign = -2.0 * w + 1.0; // 1 if w == 0 else -1
       gradients[0][seqs[0]] += sign * sf_strategies[1][seqs[1]];
       gradients[1][seqs[1]] -= sign * sf_strategies[0][seqs[0]];
     }
   }
 }
-}  // namespace
+} // namespace
 
 void Treeplex::validate_vector(ConstRealBuf buf) const {
   CHECK(buf.size() == num_infosets() * 9,
@@ -195,7 +195,8 @@ Real Treeplex::br(RealBuf buf, RealBuf strat) const {
   std::fill(strat.begin(), strat.end(), 0.0);
 
   validate_vector(buf);
-  if (!strat.empty()) validate_vector(buf);
+  if (!strat.empty())
+    validate_vector(buf);
 
   Real max_val = std::numeric_limits<Real>::lowest();
   for (int32_t i = num_infosets() - 1; i >= 0; --i) {
@@ -222,7 +223,8 @@ Real Treeplex::br(RealBuf buf, RealBuf strat) const {
     }
   }
 
-  if (!strat.empty()) validate_strategy(strat);
+  if (!strat.empty())
+    validate_strategy(strat);
 
   return max_val;
 }
@@ -268,8 +270,7 @@ void Treeplex::regret_to_bh(RealBuf buf) const {
   validate_strategy(buf);
 }
 
-template <typename T>
-Traverser<T>::Traverser() {
+template <typename T> Traverser<T>::Traverser() {
   for (auto p : {0, 1}) {
     treeplex[p] = std::make_shared<Treeplex>();
     treeplex[p]->infosets.reserve(5000000);
@@ -285,12 +286,16 @@ Traverser<T>::Traverser() {
     T s{};
     {
       const uint8_t a = i % 9;
-      assert(s.available_actions() & (1 << a));
+      if (!(s.available_actions() & (1 << a))) {
+        continue;
+      }
       s.next(a);
     }
     {
       const uint8_t a = i / 9;
-      assert(s.available_actions() & (1 << a));
+      if (!(s.available_actions() & (1 << a))) {
+        continue;
+      }
       s.next(a);
     }
 
@@ -362,8 +367,10 @@ Traverser<T>::Traverser() {
 
   for (auto player : {0, 1}) {
     assert(*treeplex[player]->infoset_keys.begin() == 0);
-    assert(treeplex[player]->infoset_keys.size() == treeplex[player]->infosets.size() &&
-           treeplex[player]->parent_index.size() == treeplex[player]->infosets.size());
+    assert(treeplex[player]->infoset_keys.size() ==
+               treeplex[player]->infosets.size() &&
+           treeplex[player]->parent_index.size() ==
+               treeplex[player]->infosets.size());
 
     for (int i = 0; i < 9; ++i) {
       bufs_[player][i].resize(treeplex[player]->num_infosets() * 9);
@@ -399,10 +406,14 @@ void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
 #pragma omp parallel for
   for (unsigned i = 0; i < 9 * 9; ++i) {
     T s{};
+    if (!(s.available_actions() & (1 << (i % 9))) ||
+        !(s.available_actions() & (1 << (i / 9)))) {
+      continue;
+    }
     assert(!s.get_infoset());
-    s.next(i % 9);  // pl1's move
+    s.next(i % 9); // pl1's move
     assert(!s.get_infoset());
-    s.next(i / 9);  // pl2's move
+    s.next(i / 9); // pl2's move
 
     const PerPlayer<uint32_t> parent_seqs = {i % 9, i / 9};
     const PerPlayer<RealBuf> thread_gradients = {bufs_[0][i / 9],
@@ -431,17 +442,19 @@ void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
   }
 
   INFO("... all done.");
-  for (auto p : {0, 1}) treeplex[p]->validate_vector(gradients[p]);
+  for (auto p : {0, 1})
+    treeplex[p]->validate_vector(gradients[p]);
 }
 
 template <typename T>
-EvExpl Traverser<T>::ev_and_exploitability(
-    const PerPlayer<ConstRealBuf> strategies) {
+EvExpl
+Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
   EvExpl out;
 
   INFO("begin exploitability computation...");
   compute_gradients(strategies);
-  for (auto p : {0, 1}) out.gradient[p] = gradients[p];
+  for (auto p : {0, 1})
+    out.gradient[p] = gradients[p];
 
   INFO("computing expected value...");
   Real ev0 = dot(sf_strategies_[0], gradients[0]);
@@ -484,6 +497,7 @@ void Traverser<T>::compute_sf_strategies_(
 
 template struct Traverser<DhState<false>>;
 template struct Traverser<DhState<true>>;
+template struct Traverser<CornerDhState>;
 template struct Traverser<PtttState<false>>;
 template struct Traverser<PtttState<true>>;
 template struct Traverser<SdhState>;

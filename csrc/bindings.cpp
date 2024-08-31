@@ -65,9 +65,7 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
         buf.size(), prod(shape));
   return NdArray(shape, buf.data());
 }
-auto to_ndarray(ConstRealBuf buf) {
-  return to_ndarray(mat_shape(buf), buf);
-}
+auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
 
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();
@@ -80,7 +78,7 @@ std::string infoset_desc(uint64_t key) {
   reverse(out.begin(), out.end());
   return out;
 }
-}  // namespace
+} // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -90,7 +88,7 @@ struct EvExplPy {
 
   // NB: allows implicit conversion
   EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl(ev.expl) {
-    for (auto p: {0, 1}) {
+    for (auto p : {0, 1}) {
       gradient[p] = to_ndarray(ev.gradient[p]);
       best_response[p] = to_ndarray(ev.best_response[p]);
     }
@@ -236,7 +234,7 @@ void register_types(py::module &m, const std::string &prefix) {
       .def("step", &CfrSolver<T>::step)
       .def("avg_bh", [](const CfrSolver<T> &solver) {
         return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
-                              to_ndarray(solver.get_avg_bh(1)));
+                               to_ndarray(solver.get_avg_bh(1)));
       });
 }
 
@@ -256,9 +254,7 @@ PYBIND11_MODULE(pydh3, m) {
   py::class_<Averager>(m, "Averager")
       .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
       .def("running_avg",
-           [](const Averager &a) {
-             return to_ndarray(a.running_avg());
-           })
+           [](const Averager &a) { return to_ndarray(a.running_avg()); })
       .def("clear", &Averager::clear);
   ;
 
@@ -298,6 +294,7 @@ PYBIND11_MODULE(pydh3, m) {
 
   register_types<DhState<false>>(m, "Dh");
   register_types<DhState<true>>(m, "AbruptDh");
+  register_types<CornerDhState>(m, "CornerDh");
   register_types<PtttState<false>>(m, "Pttt");
   register_types<PtttState<true>>(m, "AbruptPttt");
 }
