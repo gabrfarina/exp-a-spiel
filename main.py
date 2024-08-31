@@ -7,9 +7,6 @@ import argparse
 import submitit
 from pathlib import Path
 
-logging.basicConfig(format="[%(levelname)s][%(name)s][%(asctime)s] %(message)s")
-logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
 
 
 def train(
@@ -21,9 +18,16 @@ def train(
     game,
     N=1000,
 ):
+    logging.basicConfig(format="[%(levelname)s][%(name)s][%(asctime)s] %(message)s")
+    logger = logging.getLogger(__file__)
+    logger.setLevel(logging.DEBUG)
+
+    print(flush=True)
     logger.info(
         f"Training {game.__name__} with avg={avg}, alternation={alternation}, dcfr={dcfr}, rmplus={rmplus}, pcfrp={pcfrp}"
     )
+    time.sleep(1)
+    print(flush=True)
     t = game()
     cfr = dh3.CfrSolver(
         t,
@@ -48,6 +52,7 @@ def train(
             expo = t.ev_and_exploitability(*cfr.avg_bh())
             expos.append(expo)
             logger.info("expo %s" % expo)
+            print(flush=True)
     return expos
 
 
