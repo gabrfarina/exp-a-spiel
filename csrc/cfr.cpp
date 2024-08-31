@@ -4,7 +4,7 @@
 #include "traverser.h"
 #include "utils.h"
 #include <limits>
-template <typename T>
+template<typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
                         const CfrConf conf)
     : conf_(conf), traverser_(traverser),
@@ -24,17 +24,18 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
   n_iters_ = 2;
 }
 
-template <typename T> void CfrSolver<T>::step() {
+template<typename T>
+void CfrSolver<T>::step() {
   traverser_->compute_gradients({bh_[0], bh_[1]});
   inner_step();
   if (!conf_.alternation) {
     inner_step();
   }
 }
-template <typename T> void CfrSolver<T>::inner_step() {
-  ++n_iters_;
+template<typename T>
+void CfrSolver<T>::inner_step() {
   const auto p = n_iters_ % 2;
-  const auto p_iters = n_iters_ / 2;
+  const auto p_iters = n_iters_ / 2 + 1;
   if (conf_.pcfrp) {
     update_regrets<true>(p);
   } else {
@@ -42,19 +43,20 @@ template <typename T> void CfrSolver<T>::inner_step() {
   }
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters));
-  Real neg_discount = conf_.rmplus ? 0.0 : conf_.dcfr ? 0.5 : 1.0;
+  Real neg_discount = conf_.rmplus ? 0.0 : conf_.dcfr ? 0.5
+                                                      : 1.0;
   Real pos_discount = 1.0;
   for (auto &i : regrets_[p])
     if (i > 0)
       i *= pos_discount;
     else
       i *= neg_discount;
+  ++n_iters_;
 }
 
-
-template <typename T>
-template <bool predictive>
- Real CfrSolver<T>::update_regrets(int p) {
+template<typename T>
+template<bool predictive>
+Real CfrSolver<T>::update_regrets(int p) {
   traverser_->treeplex[p]->validate_strategy(bh_[p]);
   traverser_->treeplex[p]->validate_vector(regrets_[p]);
   traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
@@ -67,13 +69,12 @@ template <bool predictive>
     Real max_val = std::numeric_limits<Real>::lowest();
 
     for (uint32_t j = 0; j < 9; ++j) {
-      if (is_valid(mask, j) &&
-          (traverser_->gradients[p][i * 9 + j] > max_val)) {
+      if (is_valid(mask, j) && (traverser_->gradients[p][i * 9 + j] > max_val)) {
         max_val = traverser_->gradients[p][i * 9 + j];
       }
     }
     ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
-          std::span(bh_[p]).subspan(i * 9, 9));
+             std::span(bh_[p]).subspan(i * 9, 9));
     for (uint32_t j = 0; j < 9; ++j) {
       if (is_valid(mask, j)) {
         regrets_[p][i * 9 + j] += traverser_->gradients[p][i * 9 + j] - ev;
@@ -83,7 +84,7 @@ template <bool predictive>
     relu_noramlize(std::span(bh_[p]).subspan(i * 9, 9), mask);
     if (predictive)
       ev = dot(std::span(traverser_->gradients[p]).subspan(i * 9, 9),
-              std::span(bh_[p]).subspan(i * 9, 9));
+               std::span(bh_[p]).subspan(i * 9, 9));
 
     if (i) {
       const uint32_t parent = traverser_->treeplex[p]->parent_index[i];
@@ -98,7 +99,6 @@ template <bool predictive>
 
   return ev;
 }
-
 
 template class CfrSolver<DhState<false>>;
 template class CfrSolver<DhState<true>>;
