@@ -32,7 +32,6 @@ std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
   return {(py::ssize_t)buf.size() / 9, 9};
 }
 
-
 namespace {
 constexpr CfrConf default_cfr_args = CfrConf();
 
@@ -44,28 +43,29 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   return NdArray(shape, buf.data());
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
-
+AveragingStrategy to_avg(const py::handle &item) {
+  if (item.get_type() == py::type::of<AveragingStrategy>()) {
+    return item.cast<AveragingStrategy>();
+  } else {
+    const std::string avg = item.cast<std::string>();
+    if (avg == "uniform") {
+      return AveragingStrategy::UNIFORM;
+    } else if (avg == "linear") {
+      return AveragingStrategy::LINEAR;
+    } else if (avg == "quadratic") {
+      return AveragingStrategy::QUADRATIC;
+    } else {
+      CHECK(false, "Unknown averaging strategy %s", avg.c_str());
+    }
+  }
+}
 CfrConf make_cfr_conf(py::kwargs args) {
   CfrConf conf;
   if (args) {
     for (auto item : args) {
       const std::string key = item.first.cast<std::string>();
       if (key == "avg") {
-        if (item.second.get_type() == py::type::of<AveragingStrategy>()) {
-          conf.avg = item.second.cast<AveragingStrategy>();
-        } else {
-          const std::string avg = item.second.cast<std::string>();
-          if (avg == "uniform") {
-            conf.avg = AveragingStrategy::UNIFORM;
-          } else if (avg == "linear") {
-            conf.avg = AveragingStrategy::LINEAR;
-          } else if (avg == "quadratic") {
-            conf.avg = AveragingStrategy::QUADRATIC;
-          } else {
-            CHECK(false, "Unknown averaging strategy %s", avg.c_str());
-          }
-        }
-        conf.avg = item.second.cast<AveragingStrategy>();
+        conf.avg = to_avg(item.second);
       } else if (key == "alternation") {
         conf.alternation = item.second.cast<bool>();
       } else if (key == "dcfr") {
@@ -81,7 +81,7 @@ CfrConf make_cfr_conf(py::kwargs args) {
   }
   return conf;
 }
-} // namespace
+}  // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -239,11 +239,10 @@ void register_types(py::module &m, const std::string &prefix) {
                                to_ndarray(solver.get_avg_bh(1)));
       });
 
-  m.def("CfrSolver",
-        [](const std::shared_ptr<Traverser<T>> t,
-           py::kwargs conf) -> CfrSolver<T> {
-          return {t, make_cfr_conf(conf)};
-        });
+  m.def(
+      "CfrSolver",
+      [](const std::shared_ptr<Traverser<T>> t,
+         py::kwargs conf) -> CfrSolver<T> { return {t, make_cfr_conf(conf)}; });
 }
 
 PYBIND11_MODULE(pydh3, m) {
