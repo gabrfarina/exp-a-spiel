@@ -415,9 +415,8 @@ packages:
   name: dh3
   version: 0.0.1
   path: .
-  sha256: 6b9073120bf32ab0c8f8eacfbf5bc8d82d09aaddf06812287918ebc98c48d87c
+  sha256: cbde5f3041f227f4d6b1aa595701d0c6a01441715cc8a349fa70726b8b633165
   requires_python: '>=3.7'
-  editable: true
 - kind: conda
   name: exceptiongroup
   version: 1.2.2

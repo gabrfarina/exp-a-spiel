@@ -6,7 +6,7 @@ import submitit
 from pathlib import Path
 
 
-def train(game, N=1000, cfr_config=dh3.CfrConf()):
+def train(game, N=1000, cfr_config=None):
     logging.basicConfig(format="[%(levelname)s][%(name)s][%(asctime)s] %(message)s")
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.DEBUG)
@@ -43,31 +43,26 @@ if __name__ == "__main__":
         exclusive=True,
         nodes=1,
         mem=0,
-        time=48 * 60,
+        time=60 * 24 * 7,
         additional_parameters={"partition": "cpu"},
     )
 
     with executor.batch():
-        for avg, alter, dcfr, rmplus, pcfrp, game in itertools.product(
-            [
-                dh3.AveragingStrategy.QUADRATIC,
-            ],
-            [True],  # alter
-            [True],  # dcfr
-            [False],  # rmplus
-            [False],  # pcfrp
+        for game, cfr in itertools.product(
             [
                 dh3.CornerDhTraverser,
                 dh3.DhTraverser,
                 dh3.AbruptDhTraverser,
                 dh3.PtttTraverser,
                 dh3.AbruptPtttTraverser,
-            ],
+            ]
+            [
+                dh3.CfrConf.PCFRP,
+                dh3.CfrConf.DCFR,
+            ]
         ):
             job = executor.submit(
                 train,
                 game,
-                dh3.CfrConf(
-                    avg=avg, alter=alter, dcfr=dcfr, rmplus=rmplus, pcfrp=pcfrp
-                ),
-            )
+                N=1000,
+                cfr_config=cfr)

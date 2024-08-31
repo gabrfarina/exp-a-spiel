@@ -199,11 +199,9 @@ void register_types(py::module &m, const std::string &prefix) {
                                to_ndarray(solver.get_avg_bh(1)));
       });
 
-  m.def(
-      "CfrSolver",
-      [](const std::shared_ptr<Traverser<T>> t, CfrConf conf) -> CfrSolver<T> {
-        return {t, conf};
-      });
+  m.def("CfrSolver",
+        [](const std::shared_ptr<Traverser<T>> t,
+           const CfrConf &conf) -> CfrSolver<T> { return {t, conf}; });
 }
 
 PYBIND11_MODULE(pydh3, m) {
@@ -233,32 +231,66 @@ PYBIND11_MODULE(pydh3, m) {
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(py::init([](AveragingStrategy avg, bool alternation, bool dcfr,
-                       bool rmplus, bool pcfrp) -> CfrConf {
+                       bool rmplus, bool predictive) -> CfrConf {
              return {
                  .avg = avg,
                  .alternation = alternation,
                  .dcfr = dcfr,
                  .rmplus = rmplus,
-                 .pcfrp = pcfrp,
+                 .predictive = predictive,
              };
            }),
            py::kw_only(), py::arg("avg") = default_cfr_args.avg,
            py::arg("alternation") = default_cfr_args.alternation,
            py::arg("dcfr") = default_cfr_args.dcfr,
            py::arg("rmplus") = default_cfr_args.rmplus,
-           py::arg("pcfrp") = default_cfr_args.pcfrp)
+           py::arg("predictive") = default_cfr_args.predictive)
       .def_readwrite("avg", &CfrConf::avg)
       .def_readwrite("alternation", &CfrConf::alternation)
       .def_readwrite("dcfr", &CfrConf::dcfr)
-      .def_readwrite("pcfrp", &CfrConf::pcfrp)
+      .def_readwrite("predictive", &CfrConf::predictive)
       .def_readwrite("rmplus", &CfrConf::rmplus)
-      .def("__repr__", [](const CfrConf &conf) {
-        std::ostringstream ss;
-        ss << std::boolalpha << "CfrConf(avg=" << avg_str(conf.avg)
-           << ", alternation=" << conf.alternation << ", dcfr=" << conf.dcfr
-           << ", rmplus=" << conf.rmplus << ", pcfrp=" << conf.pcfrp << ")";
-        return ss.str();
-      });
+      .def("__repr__",
+           [](const CfrConf &conf) {
+             std::ostringstream ss;
+             ss << std::boolalpha << "CfrConf(avg=" << avg_str(conf.avg)
+                << ", alternation=" << conf.alternation
+                << ", dcfr=" << conf.dcfr << ", rmplus=" << conf.rmplus
+                << ", predictive=" << conf.predictive << ")";
+             return ss.str();
+           })
+      .def_property_readonly_static("PCFRP",
+                                    [](py::handle) -> CfrConf {
+                                      return CfrConf{
+                                          .avg = AveragingStrategy::QUADRATIC,
+                                          .alternation = true,
+                                          .dcfr = false,
+                                          .rmplus = true,
+                                          .predictive = true};
+                                    })
+      .def_property_readonly_static("DCFR",
+                                    [](py::handle) -> CfrConf {
+                                      return CfrConf{
+                                          .avg = AveragingStrategy::QUADRATIC,
+                                          .alternation = true,
+                                          .dcfr = true,
+                                          .rmplus = false,
+                                          .predictive = false};
+                                    })
+      .def(py::pickle(
+          [](const CfrConf &c) {
+            return py::make_tuple(c.avg, c.alternation, c.dcfr, c.rmplus,
+                                  c.predictive);
+          },
+          [](py::tuple t) {
+            return CfrConf{
+                .avg = t[0].cast<AveragingStrategy>(),
+                .alternation = t[1].cast<bool>(),
+                .dcfr = t[2].cast<bool>(),
+                .rmplus = t[3].cast<bool>(),
+                .predictive = t[4].cast<bool>(),
+            };
+          }));
 
   register_types<DhState<false>>(m, "Dh");
   register_types<DhState<true>>(m, "AbruptDh");

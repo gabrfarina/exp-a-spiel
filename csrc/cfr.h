@@ -9,10 +9,9 @@ struct CfrConf {
   bool alternation = true;
   bool dcfr = false;
   bool rmplus = false;
-  bool pcfrp = false;
+  bool predictive = false;
 
-  void validate() const {
-  }
+  void validate() const {}
 };
 
 template <typename T> class CfrSolver {
@@ -31,7 +30,8 @@ public:
 
 private:
   void inner_step_(); // Warning: this does not update the gradient
-  template <bool predictive> Real update_regrets_(int p);
+  Real update_regrets_(int p);
+  Real update_prediction_(int p);
 
   CfrConf conf_;
   std::shared_ptr<Traverser<T>> traverser_;
@@ -39,4 +39,5 @@ private:
 
   size_t n_iters_ = 0;
   PerPlayer<std::valarray<Real>> regrets_, bh_;
+  std::valarray<Real> gradient_copy_;
 };
