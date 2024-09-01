@@ -17,6 +17,8 @@ template <typename T> PerPlayer<T> make_per_player(const T &t, const T &u) {
 }
 
 constexpr Real SMALL = 1e-20;
+// Should trap Real being defined as a narrow type
+static_assert(SMALL > std::numeric_limits<Real>::min());
 
 template <typename T> T prod(std::span<const T> x) {
   T s = 1;
