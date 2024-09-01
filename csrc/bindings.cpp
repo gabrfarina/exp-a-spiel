@@ -210,9 +210,9 @@ PYBIND11_MODULE(pydh3, m) {
       .def_readonly("best_response", &EvExplPy::best_response)
       .def("__repr__", [](const EvExplPy &ev) {
         std::ostringstream ss;
-        ss << std::fixed << std::showpoint << std::setprecision(4)
-           << std::setw(5) << "EvExpl(ev0=" << ev.ev0 << ", expl=["
-           << ev.expl[0] << ", " << ev.expl[1] << "])";
+        ss << std::fixed << std::showpoint << std::setprecision(8)
+           << "EvExpl(ev0=" << ev.ev0 << ", expl=[" << ev.expl[0] << ", "
+           << ev.expl[1] << "])";
         return ss.str();
       });
 

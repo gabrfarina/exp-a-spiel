@@ -171,7 +171,6 @@ void Treeplex::bh_to_sf(RealBuf buf) const {
   validate_vector(buf);
 }
 
-constexpr Real bh_eps = 1e-6;
 void Treeplex::sf_to_bh(RealBuf buf) const {
   validate_vector(buf);
 
@@ -180,10 +179,17 @@ void Treeplex::sf_to_bh(RealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     Real s = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      s += (buf[i * 9 + j] + bh_eps) * is_valid(a, j);
+      s += (buf[i * 9 + j]) * is_valid(a, j);
+    }
+    if (s < SMALL) {
+      s = 0;
+      for (uint32_t j = 0; j < 9; ++j) {
+        buf[i * 9 + j] = is_valid(a, j);
+        s += buf[i * 9 + j];
+      }
     }
     for (uint32_t j = 0; j < 9; ++j) {
-      buf[i * 9 + j] = (buf[i * 9 + j] + bh_eps) / s * is_valid(a, j);
+      buf[i * 9 + j] = buf[i * 9 + j] / s;
     }
   }
 

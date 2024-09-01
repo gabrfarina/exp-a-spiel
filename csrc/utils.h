@@ -16,6 +16,8 @@ template <typename T> PerPlayer<T> make_per_player(const T &t, const T &u) {
   return {t, u};
 }
 
+constexpr Real SMALL = 1e-20;
+
 template <typename T> T prod(std::span<const T> x) {
   T s = 1;
   for (const auto &v : x) {
@@ -52,7 +54,6 @@ auto sum(const T &x) {
 }
 
 inline void relu_normalize(RealBuf buf, const uint32_t mask) {
-  constexpr Real SMALL = 1e-10;
   Real s = 0;
   for (uint32_t i = 0; i < buf.size(); ++i) {
     auto const x = std::max<Real>(buf[i], 0) * is_valid(mask, i);
