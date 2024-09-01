@@ -12,7 +12,8 @@ template <typename T>
 CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
                         const CfrConf conf)
     : conf_(conf), traverser_(traverser),
-      averagers_{traverser_->new_averager(0), traverser_->new_averager(1)},
+      averagers_{traverser_->new_averager(0, conf.avg),
+                 traverser_->new_averager(1, conf.avg)},
       regrets_{
           std::valarray<Real>(0., traverser_->treeplex[0]->num_infosets() * 9),
           std::valarray<Real>(0., traverser_->treeplex[1]->num_infosets() * 9)},
@@ -21,10 +22,10 @@ CfrSolver<T>::CfrSolver(std::shared_ptr<Traverser<T>> traverser,
 
   for (auto p : {0, 1}) {
     traverser_->treeplex[p]->set_uniform(bh_[p]);
-    averagers_[p].push(bh_[p], 1.);
+    averagers_[p].push(bh_[p]);
   }
 
-  n_iters_ = 2;
+  n_steps_ = 0;
 }
 
 template <typename T> void CfrSolver<T>::step() {
@@ -38,8 +39,8 @@ template <typename T> void CfrSolver<T>::step() {
 template <typename T> void CfrSolver<T>::inner_step_() {
   constexpr double dcfr_alpha = 1.5;
   constexpr double dcfr_beta = 0.0;
-  const auto p = n_iters_ % 2;
-  const auto p_iters = n_iters_ / 2;
+  const auto p = n_steps_ % 2;
+  const auto p_iters = (n_steps_ / 2) + 1;
 
   if (conf_.predictive)
     gradient_copy_ = traverser_->gradients[p];
@@ -52,9 +53,9 @@ template <typename T> void CfrSolver<T>::inner_step_() {
     traverser_->treeplex[p]->regret_to_bh(bh_[p]);
   }
 
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
+  assert(traverser_->treeplex[p]->is_valid_strategy(bh_[p]));
   // + 1 so we take into account the initial uniform strategy
-  averagers_[p].push(bh_[p], iter_weight(conf_.avg, p_iters + 1));
+  averagers_[p].push(bh_[p]);
 
   const Real neg_discount =
       conf_.rmplus ? 0.
@@ -70,12 +71,13 @@ template <typename T> void CfrSolver<T>::inner_step_() {
       i *= pos_discount;
     else
       i *= neg_discount;
-  ++n_iters_;
+
+  ++n_steps_;
 }
 
 template <typename T> Real CfrSolver<T>::update_prediction_(int p) {
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(gradient_copy_);
+  assert(traverser_->treeplex[p]->is_valid_strategy(bh_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(gradient_copy_));
 
   Real ev = 0;
   for (int32_t i = traverser_->treeplex[p]->num_infosets() - 1; i >= 0; --i) {
@@ -103,16 +105,16 @@ template <typename T> Real CfrSolver<T>::update_prediction_(int p) {
     }
   }
 
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(gradient_copy_);
+  assert(traverser_->treeplex[p]->is_valid_strategy(bh_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(gradient_copy_));
 
   return ev;
 }
 
 template <typename T> Real CfrSolver<T>::update_regrets_(int p) {
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(regrets_[p]);
-  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
+  assert(traverser_->treeplex[p]->is_valid_strategy(bh_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(regrets_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(traverser_->gradients[p]));
 
   Real ev = 0;
   for (int32_t i = traverser_->treeplex[p]->num_infosets() - 1; i >= 0; --i) {
@@ -134,9 +136,9 @@ template <typename T> Real CfrSolver<T>::update_regrets_(int p) {
     }
   }
 
-  traverser_->treeplex[p]->validate_strategy(bh_[p]);
-  traverser_->treeplex[p]->validate_vector(regrets_[p]);
-  traverser_->treeplex[p]->validate_vector(traverser_->gradients[p]);
+  assert(traverser_->treeplex[p]->is_valid_strategy(bh_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(regrets_[p]));
+  assert(traverser_->treeplex[p]->is_valid_vector(traverser_->gradients[p]));
 
   return ev;
 }

@@ -7,6 +7,7 @@
 #include <limits>
 #include <omp.h>
 
+#include "averager.h"
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
@@ -94,49 +95,46 @@ void compute_gradients_thread(
 }
 } // namespace
 
-void Treeplex::validate_vector(ConstRealBuf buf) const {
-  CHECK(buf.size() == num_infosets() * 9,
-        "Vector size mismatch (expected %d, found %ld)", num_infosets() * 9,
-        buf.size());
+bool Treeplex::is_valid_vector(ConstRealBuf buf) const {
+  if (buf.size() != num_infosets() * 9)
+    return false;
 
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
     for (uint32_t j = 0; j < 9; ++j) {
       if (!(a & (1 << j))) {
-        CHECK(buf[i * 9 + j] == 0,
-              "strategy must be zero for illegal actions found %f @ [i, j] = "
-              "[%d, %d]",
-              buf[i * 9 + j], i, j);
+        if (buf[i * 9 + j] != 0)
+          return false;
       }
     }
   }
+  return true;
 }
 
-void Treeplex::validate_strategy(ConstRealBuf buf) const {
-  CHECK(buf.size() == num_infosets() * 9,
-        "Strategy size mismatch (expected %d, found %ld)", num_infosets() * 9,
-        buf.size());
+bool Treeplex::is_valid_strategy(ConstRealBuf buf) const {
+  if (buf.size() != num_infosets() * 9)
+    return false;
 
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
     Real sum = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      CHECK(buf[i * 9 + j] >= 0, "strategy must be nonnegative, was %f",
-            buf[i * 9 + j]);
-      CHECK(buf[i * 9 + j] <= 1, "strategy must be at most 1, was %f",
-            buf[i * 9 + j]);
+      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1)
+        return false;
 
       if (a & (1 << j)) {
         sum += buf[i * 9 + j];
-      } else {
-        CHECK(buf[i * 9 + j] == 0, "strategy must be zero for illegal actions");
+      } else if (buf[i * 9 + j] != 0.) {
+        return false;
       }
     }
-    CHECK(std::abs(sum - 1.0) < 1e-6, "strategy must sum to 1 but found %f",
-          sum);
+    if (std::abs(sum - 1.0) > 1e-6)
+      return false;
   }
+
+  return true;
 }
 
 void Treeplex::set_uniform(RealBuf buf) const {
@@ -151,11 +149,11 @@ void Treeplex::set_uniform(RealBuf buf) const {
     }
   }
 
-  validate_strategy(buf);
+  assert(is_valid_strategy(buf));
 }
 
 void Treeplex::bh_to_sf(RealBuf buf) const {
-  validate_strategy(buf);
+  CHECK(is_valid_strategy(buf), "Buffer validation fails");
 
   for (uint32_t i = 1; i < num_infosets(); ++i) {
     const uint64_t info = infoset_keys[i];
@@ -168,11 +166,11 @@ void Treeplex::bh_to_sf(RealBuf buf) const {
     }
   }
 
-  validate_vector(buf);
+  assert(is_valid_vector(buf));
 }
 
 void Treeplex::sf_to_bh(RealBuf buf) const {
-  validate_vector(buf);
+  CHECK(is_valid_vector(buf), "Buffer validation fails");
 
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
@@ -193,15 +191,17 @@ void Treeplex::sf_to_bh(RealBuf buf) const {
     }
   }
 
-  validate_strategy(buf);
+  assert(is_valid_strategy(buf));
 }
 
 Real Treeplex::br(RealBuf buf, RealBuf strat) const {
   std::fill(strat.begin(), strat.end(), 0.0);
 
-  validate_vector(buf);
-  if (!strat.empty())
-    validate_vector(buf);
+  CHECK(is_valid_vector(buf), "Buffer validationa fails");
+  if (!strat.empty()) {
+    CHECK(is_valid_vector(buf),
+          "Buffer validation for destination strategy fails");
+  }
 
   Real max_val = std::numeric_limits<Real>::lowest();
   for (int32_t i = num_infosets() - 1; i >= 0; --i) {
@@ -228,14 +228,15 @@ Real Treeplex::br(RealBuf buf, RealBuf strat) const {
     }
   }
 
-  if (!strat.empty())
-    validate_strategy(strat);
+  if (!strat.empty()) {
+    assert(is_valid_strategy(strat));
+  }
 
   return max_val;
 }
 
 void Treeplex::regret_to_bh(RealBuf buf) const {
-  validate_vector(buf);
+  CHECK(is_valid_vector(buf), "Buffer validation fails");
 
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
@@ -243,7 +244,7 @@ void Treeplex::regret_to_bh(RealBuf buf) const {
     relu_normalize(buf.subspan(i * 9, 9), a);
   }
 
-  validate_strategy(buf);
+  assert(is_valid_strategy(buf));
 }
 
 template <typename T> Traverser<T>::Traverser() {
@@ -385,8 +386,9 @@ void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
   INFO("begin gradient computation (num threads: %d)...",
        omp_get_max_threads());
   for (auto p : {0, 1}) {
-    treeplex[p]->validate_strategy(strategies[p]);
-    treeplex[p]->validate_vector(gradients[p]);
+    CHECK(treeplex[p]->is_valid_strategy(strategies[p]), "Invalid strategy");
+    CHECK(treeplex[p]->is_valid_vector(gradients[p]),
+          "Buffer validation fails");
   }
 
   compute_sf_strategies_(strategies);
@@ -439,14 +441,17 @@ void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
     for (int j = 0; j < 9; ++j) {
-      treeplex[p]->validate_vector(bufs_[p][j]);
+      assert(treeplex[p]->is_valid_vector(bufs_[p][j]));
       gradients[p] += bufs_[p][j];
     }
   }
 
   INFO("... all done.");
-  for (auto p : {0, 1})
-    treeplex[p]->validate_vector(gradients[p]);
+#ifndef NDEBUG
+  for (auto p : {0, 1}) {
+    assert(treeplex[p]->is_valid_vector(gradients[p]));
+  }
+#endif
 }
 
 template <typename T>
@@ -482,9 +487,10 @@ Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
 }
 
 template <typename T>
-Averager Traverser<T>::new_averager(const uint8_t player) {
+Averager Traverser<T>::new_averager(const uint8_t player,
+                                    const AveragingStrategy avg) {
   CHECK(player == 0 || player == 1, "Invalid player %d", player);
-  return Averager(treeplex[player]);
+  return Averager(treeplex[player], avg);
 }
 
 template <typename T>

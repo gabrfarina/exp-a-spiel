@@ -30,14 +30,12 @@ struct Treeplex {
   std::vector<uint32_t> parent_index;
 
   uint32_t num_infosets() const { return infoset_keys.size(); }
-  void validate_vector(ConstRealBuf buf) const;
-  void validate_strategy(ConstRealBuf buf) const;
+  bool is_valid_vector(ConstRealBuf buf) const;
+  bool is_valid_strategy(ConstRealBuf buf) const;
   void set_uniform(RealBuf buf) const;
   void bh_to_sf(RealBuf buf) const;
   void sf_to_bh(RealBuf buf) const;
   Real br(RealBuf grad, RealBuf strat = std::span<Real>()) const;
-  // inplace relu + renomalize, adds a small epsilon for stability (numeric and
-  // strategic) to the regrets
   void regret_to_bh(RealBuf buf) const;
 };
 
@@ -58,7 +56,7 @@ template <typename T> struct Traverser {
 
   void compute_gradients(const PerPlayer<ConstRealBuf> strategies);
   EvExpl ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies);
-  Averager new_averager(const uint8_t player);
+  Averager new_averager(const uint8_t player, const AveragingStrategy avg);
 
 private:
   PerPlayer<std::array<std::valarray<Real>, 9>> bufs_;

@@ -33,7 +33,7 @@ std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
 }
 
 namespace {
-constexpr CfrConf default_cfr_args = CfrConf();
+constexpr CfrConf CFR_DEFAULTS{};
 
 template <size_t N>
 auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
@@ -219,10 +219,10 @@ PYBIND11_MODULE(pydh3, m) {
   py::class_<Averager>(m, "Averager")
       .def(
           "push",
-          [](Averager &avg, const NdArray &arr, const Real weight) -> void {
-            avg.push(to_const_span(arr), weight);
+          [](Averager &avg, const NdArray &arr) -> void {
+            avg.push(to_const_span(arr));
           },
-          py::arg("strategy"), py::arg("weight"))
+          py::arg("strategy"))
       .def("running_avg",
            [](const Averager &a) { return to_ndarray(a.running_avg()); })
       .def("clear", &Averager::clear);
@@ -230,7 +230,9 @@ PYBIND11_MODULE(pydh3, m) {
   py::enum_<AveragingStrategy>(m, "AveragingStrategy")
       .value("UNIFORM", AveragingStrategy::UNIFORM)
       .value("LINEAR", AveragingStrategy::LINEAR)
-      .value("QUADRATIC", AveragingStrategy::QUADRATIC);
+      .value("QUADRATIC", AveragingStrategy::QUADRATIC)
+      .value("EXPERIMENTAL", AveragingStrategy::EXPERIMENTAL)
+      .value("LAST", AveragingStrategy::LAST);
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(py::init([](AveragingStrategy avg, bool alternation, bool dcfr,
@@ -243,11 +245,11 @@ PYBIND11_MODULE(pydh3, m) {
                  .predictive = predictive,
              };
            }),
-           py::kw_only(), py::arg("avg") = default_cfr_args.avg,
-           py::arg("alternation") = default_cfr_args.alternation,
-           py::arg("dcfr") = default_cfr_args.dcfr,
-           py::arg("rmplus") = default_cfr_args.rmplus,
-           py::arg("predictive") = default_cfr_args.predictive)
+           py::kw_only(), py::arg("avg") = CFR_DEFAULTS.avg,
+           py::arg("alternation") = CFR_DEFAULTS.alternation,
+           py::arg("dcfr") = CFR_DEFAULTS.dcfr,
+           py::arg("rmplus") = CFR_DEFAULTS.rmplus,
+           py::arg("predictive") = CFR_DEFAULTS.predictive)
       .def_readwrite("avg", &CfrConf::avg)
       .def_readwrite("alternation", &CfrConf::alternation)
       .def_readwrite("dcfr", &CfrConf::dcfr)
@@ -262,24 +264,24 @@ PYBIND11_MODULE(pydh3, m) {
                 << ", predictive=" << conf.predictive << ")";
              return ss.str();
            })
-      .def_property_readonly_static("PCFRP",
-                                    [](py::handle) -> CfrConf {
-                                      return CfrConf{
-                                          .avg = AveragingStrategy::QUADRATIC,
-                                          .alternation = true,
-                                          .dcfr = false,
-                                          .rmplus = true,
-                                          .predictive = true};
-                                    })
-      .def_property_readonly_static("DCFR",
-                                    [](py::handle) -> CfrConf {
-                                      return CfrConf{
-                                          .avg = AveragingStrategy::QUADRATIC,
-                                          .alternation = true,
-                                          .dcfr = true,
-                                          .rmplus = false,
-                                          .predictive = false};
-                                    })
+      .def_property_readonly_static( //
+          "PCFRP",
+          [](py::handle) -> CfrConf {
+            return CfrConf{.avg = AveragingStrategy::EXPERIMENTAL,
+                           .alternation = true,
+                           .dcfr = false,
+                           .rmplus = true,
+                           .predictive = true};
+          })
+      .def_property_readonly_static( //
+          "DCFR",
+          [](py::handle) -> CfrConf {
+            return CfrConf{.avg = AveragingStrategy::QUADRATIC,
+                           .alternation = true,
+                           .dcfr = true,
+                           .rmplus = false,
+                           .predictive = false};
+          })
       .def(py::pickle(
           [](const CfrConf &c) {
             return py::make_tuple(c.avg, c.alternation, c.dcfr, c.rmplus,

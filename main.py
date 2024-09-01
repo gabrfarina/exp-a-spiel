@@ -37,7 +37,7 @@ if __name__ == "__main__":
     project_dir = Path(__file__).parent.resolve()
     (project_dir / "exps").mkdir(exist_ok=True)
 
-    executor = submitit.SlurmExecutor(folder=project_dir / "exps")
+    executor = submitit.SlurmExecutor(folder=project_dir / "exps_new")
 
     executor.update_parameters(
         exclusive=True,

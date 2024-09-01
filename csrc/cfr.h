@@ -37,7 +37,7 @@ private:
   std::shared_ptr<Traverser<T>> traverser_;
   PerPlayer<Averager> averagers_;
 
-  size_t n_iters_ = 0;
+  size_t n_steps_ = 0;
   PerPlayer<std::valarray<Real>> regrets_, bh_;
   std::valarray<Real> gradient_copy_;
 };
