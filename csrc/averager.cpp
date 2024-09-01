@@ -35,13 +35,26 @@ Averager::Averager(std::shared_ptr<Treeplex> treeplex,
     : treeplex_(treeplex), avg_(avg), sf_(0.0, treeplex->num_infosets() * 9),
       buf_(0.0, treeplex->num_infosets() * 9) {}
 
-void Averager::push(ConstRealBuf strategy) {
+void Averager::push(ConstRealBuf strategy, const std::optional<Real> weight) {
+  if (avg_ == CUSTOM) {
+    CHECK(!!weight && *weight >= 0.0, "Weight for custom averaging strategy "
+                                      "must be specified and nonnegative");
+  } else {
+    CHECK(!weight, "Cannot specify weight for non-CUSTOM averaging strategies");
+  }
+
   CHECK(strategy.size() == sf_.size(), "Strategy size mismatch");
   CHECK(treeplex_->is_valid_strategy(strategy), "Invalid strategy");
 
   ++num_;
-  const Real alpha = iter_weight(avg_, num_);
-  CHECK(num_ > 1 || alpha == 1., "The first iteration should have alpha = 1");
+  Real alpha = 0.;
+  if (avg_ != CUSTOM) {
+    alpha = iter_weight(avg_, num_);
+    CHECK(num_ > 1 || alpha == 1., "The first iteration should have alpha = 1");
+  } else {
+    weight_sum_ += *weight;
+    alpha = *weight / weight_sum_;
+  }
 
   INFO("Pushing strategy with alpha %f", alpha);
   buf_.resize(strategy.size());
@@ -54,10 +67,18 @@ void Averager::push(ConstRealBuf strategy) {
 
 std::valarray<Real> Averager::running_avg() const {
   CHECK(num_ > 0, "No data to average");
+  if (avg_ == CUSTOM)
+    CHECK(weight_sum_ > 0., "Weight sum is 0");
   std::valarray<Real> out = sf_;
   treeplex_->sf_to_bh(out);
   assert(treeplex_->is_valid_strategy(out));
   return out;
+}
+
+void Averager::clear() {
+  weight_sum_ = 0.;
+  num_ = 0;
+  sf_ = 0.;
 }
 
 std::string avg_str(const AveragingStrategy avg) {
@@ -72,6 +93,8 @@ std::string avg_str(const AveragingStrategy avg) {
     return "experimental";
   case LAST:
     return "last";
+  case CUSTOM:
+    return "custom";
   default:
     CHECK(false, "Unknown averaging strategy %d", avg);
   }

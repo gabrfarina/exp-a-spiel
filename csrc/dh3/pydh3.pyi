@@ -3,9 +3,9 @@ import dh3
 import numpy
 import pybind11_stubgen.typing_ext
 import typing
-__all__ = ['AbruptDhSolver', 'AbruptDhState', 'AbruptDhTraverser', 'AbruptPtttSolver', 'AbruptPtttState', 'AbruptPtttTraverser', 'Averager', 'AveragingStrategy', 'CfrConf', 'CfrSolver', 'CornerDhSolver', 'CornerDhState', 'CornerDhTraverser', 'DhSolver', 'DhState', 'DhTraverser', 'EvExpl', 'PtttSolver', 'PtttState', 'PtttTraverser']
-class AbruptDhSolver:
-    def __init__(self, arg0: AbruptDhTraverser, arg1: CfrConf) -> None:
+__all__ = ['AbruptDhCfrSolver', 'AbruptDhState', 'AbruptDhTraverser', 'AbruptPtttCfrSolver', 'AbruptPtttState', 'AbruptPtttTraverser', 'Averager', 'AveragingStrategy', 'CfrConf', 'CfrSolver', 'CornerDhCfrSolver', 'CornerDhState', 'CornerDhTraverser', 'DhCfrSolver', 'DhState', 'DhTraverser', 'EvExpl', 'PtttCfrSolver', 'PtttState', 'PtttTraverser']
+class AbruptDhCfrSolver:
+    def __init__(self, traverser: AbruptDhTraverser, cfr_conf: CfrConf) -> None:
         ...
     def avg_bh(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
@@ -26,7 +26,7 @@ class AbruptDhState:
         ...
     def is_terminal(self) -> bool:
         ...
-    def next(self, arg0: int) -> None:
+    def next(self, cell: int) -> None:
         ...
     def player(self) -> int | None:
         ...
@@ -35,15 +35,15 @@ class AbruptDhState:
 class AbruptDhTraverser:
     def __init__(self) -> None:
         ...
-    def construct_uniform_strategies(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def construct_uniform_strategies(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-    def ev_and_exploitability(self, arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> EvExpl:
+    def ev_and_exploitability(self, strat0: numpy.ndarray[numpy.float64], strat1: numpy.ndarray[numpy.float64]) -> EvExpl:
         ...
     def infoset_desc(self, player: int, row: int) -> str:
         ...
-    def new_averager(self, arg0: int) -> Averager:
+    def new_averager(self, player: int, avg_strategy: AveragingStrategy) -> Averager:
         ...
-    def parent_index_and_action(self, arg0: int, arg1: int) -> tuple[int, int]:
+    def parent_index_and_action(self, player: int, row: int) -> tuple[int, int]:
         ...
     @property
     def NUM_INFOS_PL1(self) -> int:
@@ -51,8 +51,8 @@ class AbruptDhTraverser:
     @property
     def NUM_INFOS_PL2(self) -> int:
         ...
-class AbruptPtttSolver:
-    def __init__(self, arg0: AbruptPtttTraverser, arg1: CfrConf) -> None:
+class AbruptPtttCfrSolver:
+    def __init__(self, traverser: AbruptPtttTraverser, cfr_conf: CfrConf) -> None:
         ...
     def avg_bh(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
@@ -73,7 +73,7 @@ class AbruptPtttState:
         ...
     def is_terminal(self) -> bool:
         ...
-    def next(self, arg0: int) -> None:
+    def next(self, cell: int) -> None:
         ...
     def player(self) -> int | None:
         ...
@@ -82,15 +82,15 @@ class AbruptPtttState:
 class AbruptPtttTraverser:
     def __init__(self) -> None:
         ...
-    def construct_uniform_strategies(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def construct_uniform_strategies(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-    def ev_and_exploitability(self, arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> EvExpl:
+    def ev_and_exploitability(self, strat0: numpy.ndarray[numpy.float64], strat1: numpy.ndarray[numpy.float64]) -> EvExpl:
         ...
     def infoset_desc(self, player: int, row: int) -> str:
         ...
-    def new_averager(self, arg0: int) -> Averager:
+    def new_averager(self, player: int, avg_strategy: AveragingStrategy) -> Averager:
         ...
-    def parent_index_and_action(self, arg0: int, arg1: int) -> tuple[int, int]:
+    def parent_index_and_action(self, player: int, row: int) -> tuple[int, int]:
         ...
     @property
     def NUM_INFOS_PL1(self) -> int:
@@ -101,7 +101,7 @@ class AbruptPtttTraverser:
 class Averager:
     def clear(self) -> None:
         ...
-    def push(self, strategy: numpy.ndarray[numpy.float64], weight: float) -> None:
+    def push(self, strategy: numpy.ndarray[numpy.float64], weight: float | None = None) -> None:
         ...
     def running_avg(self) -> numpy.ndarray[numpy.float64]:
         ...
@@ -114,11 +114,20 @@ class AveragingStrategy:
       LINEAR
     
       QUADRATIC
+    
+      EXPERIMENTAL
+    
+      LAST
+    
+      CUSTOM
     """
+    CUSTOM: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.CUSTOM: 5>
+    EXPERIMENTAL: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.EXPERIMENTAL: 3>
+    LAST: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.LAST: 4>
     LINEAR: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.LINEAR: 1>
     QUADRATIC: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.QUADRATIC: 2>
     UNIFORM: typing.ClassVar[AveragingStrategy]  # value = <AveragingStrategy.UNIFORM: 0>
-    __members__: typing.ClassVar[dict[str, AveragingStrategy]]  # value = {'UNIFORM': <AveragingStrategy.UNIFORM: 0>, 'LINEAR': <AveragingStrategy.LINEAR: 1>, 'QUADRATIC': <AveragingStrategy.QUADRATIC: 2>}
+    __members__: typing.ClassVar[dict[str, AveragingStrategy]]  # value = {'UNIFORM': <AveragingStrategy.UNIFORM: 0>, 'LINEAR': <AveragingStrategy.LINEAR: 1>, 'QUADRATIC': <AveragingStrategy.QUADRATIC: 2>, 'EXPERIMENTAL': <AveragingStrategy.EXPERIMENTAL: 3>, 'LAST': <AveragingStrategy.LAST: 4>, 'CUSTOM': <AveragingStrategy.CUSTOM: 5>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __getstate__(self) -> int:
@@ -155,14 +164,14 @@ class CfrConf:
     rmplus: bool
     def __getstate__(self) -> tuple:
         ...
-    def __init__(self, *, avg: AveragingStrategy = dh3.AveragingStrategy.LINEAR, alternation: bool = True, dcfr: bool = False, rmplus: bool = False, predictive: bool = False) -> None:
+    def __init__(self, *, avg: AveragingStrategy = dh3.AveragingStrategy.QUADRATIC, alternation: bool = True, dcfr: bool = True, rmplus: bool = False, predictive: bool = False) -> None:
         ...
     def __repr__(self) -> str:
         ...
     def __setstate__(self, arg0: tuple) -> None:
         ...
-class CornerDhSolver:
-    def __init__(self, arg0: CornerDhTraverser, arg1: CfrConf) -> None:
+class CornerDhCfrSolver:
+    def __init__(self, traverser: CornerDhTraverser, cfr_conf: CfrConf) -> None:
         ...
     def avg_bh(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
@@ -183,7 +192,7 @@ class CornerDhState:
         ...
     def is_terminal(self) -> bool:
         ...
-    def next(self, arg0: int) -> None:
+    def next(self, cell: int) -> None:
         ...
     def player(self) -> int | None:
         ...
@@ -192,15 +201,15 @@ class CornerDhState:
 class CornerDhTraverser:
     def __init__(self) -> None:
         ...
-    def construct_uniform_strategies(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def construct_uniform_strategies(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-    def ev_and_exploitability(self, arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> EvExpl:
+    def ev_and_exploitability(self, strat0: numpy.ndarray[numpy.float64], strat1: numpy.ndarray[numpy.float64]) -> EvExpl:
         ...
     def infoset_desc(self, player: int, row: int) -> str:
         ...
-    def new_averager(self, arg0: int) -> Averager:
+    def new_averager(self, player: int, avg_strategy: AveragingStrategy) -> Averager:
         ...
-    def parent_index_and_action(self, arg0: int, arg1: int) -> tuple[int, int]:
+    def parent_index_and_action(self, player: int, row: int) -> tuple[int, int]:
         ...
     @property
     def NUM_INFOS_PL1(self) -> int:
@@ -208,8 +217,8 @@ class CornerDhTraverser:
     @property
     def NUM_INFOS_PL2(self) -> int:
         ...
-class DhSolver:
-    def __init__(self, arg0: DhTraverser, arg1: CfrConf) -> None:
+class DhCfrSolver:
+    def __init__(self, traverser: DhTraverser, cfr_conf: CfrConf) -> None:
         ...
     def avg_bh(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
@@ -230,7 +239,7 @@ class DhState:
         ...
     def is_terminal(self) -> bool:
         ...
-    def next(self, arg0: int) -> None:
+    def next(self, cell: int) -> None:
         ...
     def player(self) -> int | None:
         ...
@@ -239,15 +248,15 @@ class DhState:
 class DhTraverser:
     def __init__(self) -> None:
         ...
-    def construct_uniform_strategies(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def construct_uniform_strategies(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-    def ev_and_exploitability(self, arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> EvExpl:
+    def ev_and_exploitability(self, strat0: numpy.ndarray[numpy.float64], strat1: numpy.ndarray[numpy.float64]) -> EvExpl:
         ...
     def infoset_desc(self, player: int, row: int) -> str:
         ...
-    def new_averager(self, arg0: int) -> Averager:
+    def new_averager(self, player: int, avg_strategy: AveragingStrategy) -> Averager:
         ...
-    def parent_index_and_action(self, arg0: int, arg1: int) -> tuple[int, int]:
+    def parent_index_and_action(self, player: int, row: int) -> tuple[int, int]:
         ...
     @property
     def NUM_INFOS_PL1(self) -> int:
@@ -259,19 +268,19 @@ class EvExpl:
     def __repr__(self) -> str:
         ...
     @property
-    def best_response(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def best_response(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
     @property
     def ev0(self) -> float:
         ...
     @property
-    def expl(self) -> typing.Annotated[list[float], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def expl(self) -> tuple[float, float]:
         ...
     @property
-    def gradient(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def gradient(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-class PtttSolver:
-    def __init__(self, arg0: PtttTraverser, arg1: CfrConf) -> None:
+class PtttCfrSolver:
+    def __init__(self, traverser: PtttTraverser, cfr_conf: CfrConf) -> None:
         ...
     def avg_bh(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
@@ -292,7 +301,7 @@ class PtttState:
         ...
     def is_terminal(self) -> bool:
         ...
-    def next(self, arg0: int) -> None:
+    def next(self, cell: int) -> None:
         ...
     def player(self) -> int | None:
         ...
@@ -301,15 +310,15 @@ class PtttState:
 class PtttTraverser:
     def __init__(self) -> None:
         ...
-    def construct_uniform_strategies(self) -> typing.Annotated[list[numpy.ndarray[numpy.float64]], pybind11_stubgen.typing_ext.FixedSize(2)]:
+    def construct_uniform_strategies(self) -> tuple[numpy.ndarray[numpy.float64], numpy.ndarray[numpy.float64]]:
         ...
-    def ev_and_exploitability(self, arg0: numpy.ndarray[numpy.float64], arg1: numpy.ndarray[numpy.float64]) -> EvExpl:
+    def ev_and_exploitability(self, strat0: numpy.ndarray[numpy.float64], strat1: numpy.ndarray[numpy.float64]) -> EvExpl:
         ...
     def infoset_desc(self, player: int, row: int) -> str:
         ...
-    def new_averager(self, arg0: int) -> Averager:
+    def new_averager(self, player: int, avg_strategy: AveragingStrategy) -> Averager:
         ...
-    def parent_index_and_action(self, arg0: int, arg1: int) -> tuple[int, int]:
+    def parent_index_and_action(self, player: int, row: int) -> tuple[int, int]:
         ...
     @property
     def NUM_INFOS_PL1(self) -> int:
@@ -318,17 +327,17 @@ class PtttTraverser:
     def NUM_INFOS_PL2(self) -> int:
         ...
 @typing.overload
-def CfrSolver(arg0: DhTraverser, arg1: CfrConf) -> DhSolver:
+def CfrSolver(traverser: DhTraverser, cfr_conf: CfrConf) -> DhCfrSolver:
     ...
 @typing.overload
-def CfrSolver(arg0: AbruptDhTraverser, arg1: CfrConf) -> AbruptDhSolver:
+def CfrSolver(traverser: AbruptDhTraverser, cfr_conf: CfrConf) -> AbruptDhCfrSolver:
     ...
 @typing.overload
-def CfrSolver(arg0: CornerDhTraverser, arg1: CfrConf) -> CornerDhSolver:
+def CfrSolver(traverser: CornerDhTraverser, cfr_conf: CfrConf) -> CornerDhCfrSolver:
     ...
 @typing.overload
-def CfrSolver(arg0: PtttTraverser, arg1: CfrConf) -> PtttSolver:
+def CfrSolver(traverser: PtttTraverser, cfr_conf: CfrConf) -> PtttCfrSolver:
     ...
 @typing.overload
-def CfrSolver(arg0: AbruptPtttTraverser, arg1: CfrConf) -> AbruptPtttSolver:
+def CfrSolver(traverser: AbruptPtttTraverser, cfr_conf: CfrConf) -> AbruptPtttCfrSolver:
     ...

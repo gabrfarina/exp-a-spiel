@@ -47,16 +47,16 @@ auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
 
 struct EvExplPy {
   Real ev0;
-  std::array<NdArray, 2> gradient;
-  std::array<Real, 2> expl;
-  std::array<NdArray, 2> best_response;
+  std::tuple<NdArray, NdArray> gradient;
+  std::tuple<Real, Real> expl;
+  std::tuple<NdArray, NdArray> best_response;
 
   // NB: allows implicit conversion
-  EvExplPy(const EvExpl &ev) : ev0(ev.ev0), expl(ev.expl) {
-    for (auto p : {0, 1}) {
-      gradient[p] = to_ndarray(ev.gradient[p]);
-      best_response[p] = to_ndarray(ev.best_response[p]);
-    }
+  EvExplPy(EvExpl ev) : ev0(ev.ev0), expl{ev.expl[0], ev.expl[1]} {
+    std::get<0>(gradient) = to_ndarray(ev.gradient[0]);
+    std::get<0>(best_response) = to_ndarray(ev.best_response[0]);
+    std::get<1>(gradient) = to_ndarray(ev.gradient[1]);
+    std::get<1>(best_response) = to_ndarray(ev.best_response[1]);
   }
 };
 
@@ -73,15 +73,17 @@ void register_types(py::module &m, const std::string &prefix) {
                return std::nullopt;
              }
            })
-      .def("next",
-           [](T &s, const uint8_t cell) -> void {
-             CHECK(cell < 9, "Invalid cell (must be in range [0..8]; found %d)",
-                   cell);
-             CHECK(!s.is_terminal(), "Game is over");
-             const uint32_t a = s.available_actions();
-             CHECK(a & (1 << cell), "The action is not legal");
-             s.next(cell);
-           })
+      .def(
+          "next",
+          [](T &s, const uint8_t cell) -> void {
+            CHECK(cell < 9, "Invalid cell (must be in range [0..8]; found %d)",
+                  cell);
+            CHECK(!s.is_terminal(), "Game is over");
+            const uint32_t a = s.available_actions();
+            CHECK(a & (1 << cell), "The action is not legal");
+            s.next(cell);
+          },
+          py::arg("cell"))
       .def("is_terminal", &T::is_terminal)
       .def("winner",
            [](const T &s) -> std::optional<uint8_t> {
@@ -115,10 +117,11 @@ void register_types(py::module &m, const std::string &prefix) {
   py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(
       m, (prefix + "Traverser").c_str())
       .def(py::init<>())
-      .def("ev_and_exploitability",
-           [](Traverser<T> &traverser, const NdArray &strat0,
-              const NdArray &strat1) -> EvExplPy {
-             // clang-format off
+      .def(
+          "ev_and_exploitability",
+          [](Traverser<T> &traverser, const NdArray &strat0,
+             const NdArray &strat1) -> EvExplPy {
+            // clang-format off
             CHECK(strat0.ndim() == 2 &&
                       strat0.shape(0) == traverser.treeplex[0]->num_infosets() &&
                       strat0.shape(1) == 9,
@@ -131,11 +134,12 @@ void register_types(py::module &m, const std::string &prefix) {
                   "Invalid shape for Player 2's strategy. Must be (%d, 9); (%lu, %lu)",
                   traverser.treeplex[1]->num_infosets(), strat1.shape(0),
                   strat1.shape(1));
-             // clang-format on
+            // clang-format on
 
-             return traverser.ev_and_exploitability(
-                 {to_const_span(strat0), to_const_span(strat1)});
-           })
+            return traverser.ev_and_exploitability(
+                {to_const_span(strat0), to_const_span(strat1)});
+          },
+          py::arg("strat0"), py::arg("strat1"))
       .def(
           "infoset_desc",
           [](const Traverser<T> &traverser, const uint8_t p,
@@ -150,8 +154,8 @@ void register_types(py::module &m, const std::string &prefix) {
           },
           py::arg("player"), py::arg("row"))
       .def("construct_uniform_strategies",
-           [](const Traverser<T> &traverser) -> std::array<NdArray, 2> {
-             std::array<NdArray, 2> out;
+           [](const Traverser<T> &traverser) -> std::tuple<NdArray, NdArray> {
+             PerPlayer<NdArray> out;
 
              for (int p = 0; p < 2; ++p) {
                const uint32_t rows = traverser.treeplex[p]->num_infosets();
@@ -160,20 +164,22 @@ void register_types(py::module &m, const std::string &prefix) {
                out[p] = to_ndarray(strategy);
              }
 
-             return out;
+             return std::make_tuple(out[0], out[1]);
            })
-      .def("parent_index_and_action",
-           [](const Traverser<T> &traverser, const uint8_t p,
-              const uint32_t row) {
-             CHECK(p == 0 || p == 1,
-                   "Invalid player (expected 0 or 1; found %d)", p);
-             CHECK(row < traverser.treeplex[p]->num_infosets(),
-                   "Invalid row (expected < %d; found %d)",
-                   traverser.treeplex[p]->num_infosets(), row);
-             const auto key = traverser.treeplex[p]->infoset_keys.at(row);
-             return std::make_pair(traverser.treeplex[p]->parent_index.at(row),
-                                   parent_action(key));
-           })
+      .def(
+          "parent_index_and_action",
+          [](const Traverser<T> &traverser, const uint8_t p,
+             const uint32_t row) {
+            CHECK(p == 0 || p == 1,
+                  "Invalid player (expected 0 or 1; found %d)", p);
+            CHECK(row < traverser.treeplex[p]->num_infosets(),
+                  "Invalid row (expected < %d; found %d)",
+                  traverser.treeplex[p]->num_infosets(), row);
+            const auto key = traverser.treeplex[p]->infoset_keys.at(row);
+            return std::make_pair(traverser.treeplex[p]->parent_index.at(row),
+                                  parent_action(key));
+          },
+          py::arg("player"), py::arg("row"))
       .def_property(
           "NUM_INFOS_PL1",
           [](const Traverser<T> &traverser) {
@@ -186,20 +192,25 @@ void register_types(py::module &m, const std::string &prefix) {
             return traverser.treeplex[1]->num_infosets();
           },
           nullptr)
-      .def("new_averager", &Traverser<T>::new_averager);
+      .def("new_averager", &Traverser<T>::new_averager, py::arg("player"),
+           py::arg("avg_strategy"));
 
-  py::class_<CfrSolver<T>>(m, (prefix + "Solver").c_str())
+  py::class_<CfrSolver<T>>(m, (prefix + "CfrSolver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t, CfrConf conf)
-                        -> CfrSolver<T> { return CfrSolver<T>(t, conf); }))
+                        -> CfrSolver<T> { return CfrSolver<T>(t, conf); }),
+           py::arg("traverser"), py::arg("cfr_conf"))
       .def("step", &CfrSolver<T>::step)
-      .def("avg_bh", [](const CfrSolver<T> &solver) {
-        return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
-                               to_ndarray(solver.get_avg_bh(1)));
-      });
+      .def("avg_bh",
+           [](const CfrSolver<T> &solver) -> std::tuple<NdArray, NdArray> {
+             return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
+                                    to_ndarray(solver.get_avg_bh(1)));
+           });
 
-  m.def("CfrSolver",
-        [](const std::shared_ptr<Traverser<T>> t,
-           const CfrConf &conf) -> CfrSolver<T> { return {t, conf}; });
+  m.def(
+      "CfrSolver",
+      [](const std::shared_ptr<Traverser<T>> t,
+         const CfrConf &conf) -> CfrSolver<T> { return {t, conf}; },
+      py::arg("traverser"), py::arg("cfr_conf"));
 }
 
 PYBIND11_MODULE(pydh3, m) {
@@ -211,18 +222,19 @@ PYBIND11_MODULE(pydh3, m) {
       .def("__repr__", [](const EvExplPy &ev) {
         std::ostringstream ss;
         ss << std::fixed << std::showpoint << std::setprecision(8)
-           << "EvExpl(ev0=" << ev.ev0 << ", expl=[" << ev.expl[0] << ", "
-           << ev.expl[1] << "])";
+           << "EvExpl(ev0=" << ev.ev0 << ", expl=[" << std::get<0>(ev.expl)
+           << ", " << std::get<1>(ev.expl) << "])";
         return ss.str();
       });
 
   py::class_<Averager>(m, "Averager")
       .def(
           "push",
-          [](Averager &avg, const NdArray &arr) -> void {
-            avg.push(to_const_span(arr));
+          [](Averager &avg, const NdArray &strat,
+             const std::optional<Real> weight) -> void {
+            avg.push(to_const_span(strat), weight);
           },
-          py::arg("strategy"))
+          py::arg("strategy"), py::arg("weight") = std::nullopt)
       .def("running_avg",
            [](const Averager &a) { return to_ndarray(a.running_avg()); })
       .def("clear", &Averager::clear);
@@ -232,7 +244,8 @@ PYBIND11_MODULE(pydh3, m) {
       .value("LINEAR", AveragingStrategy::LINEAR)
       .value("QUADRATIC", AveragingStrategy::QUADRATIC)
       .value("EXPERIMENTAL", AveragingStrategy::EXPERIMENTAL)
-      .value("LAST", AveragingStrategy::LAST);
+      .value("LAST", AveragingStrategy::LAST)
+      .value("CUSTOM", AveragingStrategy::CUSTOM);
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(py::init([](AveragingStrategy avg, bool alternation, bool dcfr,
@@ -267,7 +280,7 @@ PYBIND11_MODULE(pydh3, m) {
       .def_property_readonly_static( //
           "PCFRP",
           [](py::handle) -> CfrConf {
-            return CfrConf{.avg = AveragingStrategy::EXPERIMENTAL,
+            return CfrConf{.avg = AveragingStrategy::QUADRATIC,
                            .alternation = true,
                            .dcfr = false,
                            .rmplus = true,

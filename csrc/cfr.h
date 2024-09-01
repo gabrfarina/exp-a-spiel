@@ -5,13 +5,18 @@
 #include "utils.h"
 
 struct CfrConf {
-  AveragingStrategy avg = AveragingStrategy::LINEAR;
+  AveragingStrategy avg = AveragingStrategy::QUADRATIC;
   bool alternation = true;
-  bool dcfr = false;
+  bool dcfr = true;
   bool rmplus = false;
   bool predictive = false;
 
-  void validate() const {}
+  void validate() const {
+    CHECK(avg != AveragingStrategy::CUSTOM,
+          "CFR averaging strategy cannot be CUSTOM");
+    CHECK(!dcfr || !rmplus,
+          "dcfr and rmplus options cannot both be set to true");
+  }
 };
 
 template <typename T> class CfrSolver {
