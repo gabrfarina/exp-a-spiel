@@ -37,6 +37,7 @@ pip = "*"
 pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
+mypy = ">=1.11.2,<2"
 
 [tool.pixi.pypi-dependencies]
 dh3 = { path = "." } # editable = true 

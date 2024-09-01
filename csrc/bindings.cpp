@@ -23,8 +23,8 @@
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
 
-RealBuf to_span(NdArray &arr) {
-  return RealBuf(arr.mutable_data(), arr.size());
+ConstRealBuf to_const_span(const NdArray &arr) {
+  return ConstRealBuf(arr.data(), arr.size());
 }
 
 std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
@@ -116,8 +116,8 @@ void register_types(py::module &m, const std::string &prefix) {
       m, (prefix + "Traverser").c_str())
       .def(py::init<>())
       .def("ev_and_exploitability",
-           [](Traverser<T> &traverser, NdArray strat0,
-              NdArray strat1) -> EvExplPy {
+           [](Traverser<T> &traverser, const NdArray &strat0,
+              const NdArray &strat1) -> EvExplPy {
              // clang-format off
             CHECK(strat0.ndim() == 2 &&
                       strat0.shape(0) == traverser.treeplex[0]->num_infosets() &&
@@ -134,19 +134,21 @@ void register_types(py::module &m, const std::string &prefix) {
              // clang-format on
 
              return traverser.ev_and_exploitability(
-                 {to_span(strat0), to_span(strat1)});
+                 {to_const_span(strat0), to_const_span(strat1)});
            })
-      .def("infoset_desc",
-           [](const Traverser<T> &traverser, const uint8_t p,
-              const uint32_t row) -> std::string {
-             CHECK(p == 0 || p == 1,
-                   "Invalid player (expected 0 or 1; found %d)", p);
-             CHECK(row < traverser.treeplex[p]->num_infosets(),
-                   "Invalid row (expected < %d; found %d)",
-                   traverser.treeplex[p]->num_infosets(), row);
-             uint64_t key = traverser.treeplex[p]->infoset_keys.at(row);
-             return infoset_desc(key);
-           })
+      .def(
+          "infoset_desc",
+          [](const Traverser<T> &traverser, const uint8_t p,
+             const uint32_t row) -> std::string {
+            CHECK(p == 0 || p == 1,
+                  "Invalid player (expected 0 or 1; found %d)", p);
+            CHECK(row < traverser.treeplex[p]->num_infosets(),
+                  "Invalid row (expected < %d; found %d)",
+                  traverser.treeplex[p]->num_infosets(), row);
+            uint64_t key = traverser.treeplex[p]->infoset_keys.at(row);
+            return infoset_desc(key);
+          },
+          py::arg("player"), py::arg("row"))
       .def("construct_uniform_strategies",
            [](const Traverser<T> &traverser) -> std::array<NdArray, 2> {
              std::array<NdArray, 2> out;
@@ -184,11 +186,7 @@ void register_types(py::module &m, const std::string &prefix) {
             return traverser.treeplex[1]->num_infosets();
           },
           nullptr)
-      .def("new_averager", &Traverser<T>::new_averager)
-      .def("new_cfr_solver",
-           [](const std::shared_ptr<Traverser<T>> t, CfrConf conf) {
-             return std::make_shared<CfrSolver<T>>(t, conf);
-           });
+      .def("new_averager", &Traverser<T>::new_averager);
 
   py::class_<CfrSolver<T>>(m, (prefix + "Solver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t, CfrConf conf)
@@ -219,7 +217,12 @@ PYBIND11_MODULE(pydh3, m) {
       });
 
   py::class_<Averager>(m, "Averager")
-      .def("push", &Averager::push, py::arg("strategy"), py::arg("weight"))
+      .def(
+          "push",
+          [](Averager &avg, const NdArray &arr, const Real weight) -> void {
+            avg.push(to_const_span(arr), weight);
+          },
+          py::arg("strategy"), py::arg("weight"))
       .def("running_avg",
            [](const Averager &a) { return to_ndarray(a.running_avg()); })
       .def("clear", &Averager::clear);
