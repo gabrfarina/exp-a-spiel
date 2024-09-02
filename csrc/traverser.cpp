@@ -1,16 +1,23 @@
+#include "traverser.h"
+
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <omp.h>
 
+#include "averager.h"
+#include "dh_state.h"
 #include "log.h"
-#include "traverser.h"
+#include "pttt_state.h"
+#include "utils.h"
 
 using std::size_t;
 
 namespace {
 template <typename T>
-uint64_t discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
+uint64_t discover_infosets_thread(T root, PerPlayer<InfosetMap> *infosets) {
   T stack[100];
   stack[0] = root;
   size_t stack_len = 1;
@@ -47,13 +54,12 @@ uint64_t discover_infosets_thread(T root, std::array<InfosetMap, 2> *infosets) {
 }
 
 template <typename T>
-void compute_gradients_thread(T root,
-                              const std::array<uint32_t, 2> init_parent_seqs,
-                              const Treeplex *treeplex,
-                              std::array<const Real *, 2> sf_strategies,
-                              std::array<Real *, 2> gradients) {
-  std::tuple<T,                      // Current state
-             std::array<uint32_t, 2> // Parent seqs
+void compute_gradients_thread(
+    T root, const PerPlayer<uint32_t> init_parent_seqs,
+    const PerPlayer<std::shared_ptr<Treeplex>> treeplex,
+    PerPlayer<ConstRealBuf> sf_strategies, PerPlayer<RealBuf> gradients) {
+  std::tuple<T,                  // Current state
+             PerPlayer<uint32_t> // Parent seqs
              >
       stack[100];
   stack[0] = {root, init_parent_seqs};
@@ -65,11 +71,11 @@ void compute_gradients_thread(T root,
     const uint8_t p = s.player();
     const uint8_t w = s.winner();
     const uint64_t infoset = s.get_infoset();
-    const std::array<uint32_t, 2> &seqs = std::get<1>(it);
+    const PerPlayer<uint32_t> &seqs = std::get<1>(it);
 
     if (w == 0xff) {
-      const uint32_t info_id = treeplex[p].infosets.at(infoset).infoset_id;
-      std::array<uint32_t, 2> new_seqs = seqs;
+      const uint32_t info_id = treeplex[p]->infosets.at(infoset).infoset_id;
+      PerPlayer<uint32_t> new_seqs = seqs;
 
       uint32_t a = s.available_actions();
       for (uint32_t i = 0; a; ++i, a >>= 1) {
@@ -89,57 +95,65 @@ void compute_gradients_thread(T root,
 }
 } // namespace
 
-void Treeplex::validate_vector(const Real *buf) const {
+bool Treeplex::is_valid_vector(ConstRealBuf buf) const {
+  if (buf.size() != num_infosets() * 9)
+    return false;
+
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
     for (uint32_t j = 0; j < 9; ++j) {
       if (!(a & (1 << j))) {
-        CHECK(buf[i * 9 + j] == 0, "strategy must be zero for illegal actions");
+        if (buf[i * 9 + j] != 0)
+          return false;
       }
     }
   }
+  return true;
 }
 
-void Treeplex::validate_strategy(const Real *buf) const {
+bool Treeplex::is_valid_strategy(ConstRealBuf buf) const {
+  if (buf.size() != num_infosets() * 9)
+    return false;
+
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
     Real sum = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      CHECK(buf[i * 9 + j] >= 0, "strategy must be nonnegative");
-      CHECK(buf[i * 9 + j] <= 1, "strategy must be at most 1");
+      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1)
+        return false;
 
       if (a & (1 << j)) {
         sum += buf[i * 9 + j];
-      } else {
-        CHECK(buf[i * 9 + j] == 0, "strategy must be zero for illegal actions");
+      } else if (buf[i * 9 + j] != 0.) {
+        return false;
       }
     }
-    CHECK(std::abs(sum - 1.0) < 1e-6, "strategy must sum to 1");
+    if (std::abs(sum - 1.0) > 1e-6)
+      return false;
   }
+
+  return true;
 }
 
-void Treeplex::set_uniform(Real *buf) const {
+void Treeplex::set_uniform(RealBuf buf) const {
   for (const auto &it : infosets) {
     const uint32_t i = it.second.infoset_id;
     const uint32_t a = it.second.legal_actions;
     const uint8_t na = __builtin_popcount(a);
 
     for (uint32_t j = 0; j < 9; ++j) {
-      buf[i * 9 + j] = Real(!!(a & (1 << j))) / na;
+      // !! is important to convert to 0 or 1
+      buf[i * 9 + j] = Real(is_valid(a, j)) / na;
     }
   }
 
-#ifdef DEBUG
-  validate_strategy(buf);
-#endif
+  assert(is_valid_strategy(buf));
 }
 
-void Treeplex::bh_to_sf(Real *buf) const {
-#ifdef DEBUG
-  validate_strategy(buf);
-#endif
+void Treeplex::bh_to_sf(RealBuf buf) const {
+  CHECK(is_valid_strategy(buf), "Buffer validation fails");
 
   for (uint32_t i = 1; i < num_infosets(); ++i) {
     const uint64_t info = infoset_keys[i];
@@ -152,19 +166,42 @@ void Treeplex::bh_to_sf(Real *buf) const {
     }
   }
 
-#ifdef DEBUG
-  validate_vector(buf);
-#endif
+  assert(is_valid_vector(buf));
 }
 
-Real Treeplex::br(Real *buf, Real *strat) const {
-  if (strat) {
-    memset(strat, 0, num_infosets() * 9 * sizeof(Real));
+void Treeplex::sf_to_bh(RealBuf buf) const {
+  CHECK(is_valid_vector(buf), "Buffer validation fails");
+
+  for (const auto &it : infosets) {
+    const uint32_t i = it.second.infoset_id;
+    const uint32_t a = it.second.legal_actions;
+    Real s = 0;
+    for (uint32_t j = 0; j < 9; ++j) {
+      s += (buf[i * 9 + j]) * is_valid(a, j);
+    }
+    if (s < SMALL) {
+      s = 0;
+      for (uint32_t j = 0; j < 9; ++j) {
+        buf[i * 9 + j] = is_valid(a, j);
+        s += buf[i * 9 + j];
+      }
+    }
+    for (uint32_t j = 0; j < 9; ++j) {
+      buf[i * 9 + j] = buf[i * 9 + j] / s;
+    }
   }
 
-#ifdef DEBUG
-  validate_vector(buf);
-#endif
+  assert(is_valid_strategy(buf));
+}
+
+Real Treeplex::br(RealBuf buf, RealBuf strat) const {
+  std::fill(strat.begin(), strat.end(), 0.0);
+
+  CHECK(is_valid_vector(buf), "Buffer validationa fails");
+  if (!strat.empty()) {
+    CHECK(is_valid_vector(buf),
+          "Buffer validation for destination strategy fails");
+  }
 
   Real max_val = std::numeric_limits<Real>::lowest();
   for (int32_t i = num_infosets() - 1; i >= 0; --i) {
@@ -186,22 +223,48 @@ Real Treeplex::br(Real *buf, Real *strat) const {
       const uint32_t parent_a = parent_action(info);
       buf[parent * 9 + parent_a] += max_val;
     }
-    if (strat) {
+    if (!strat.empty()) {
       strat[i * 9 + best_action] = 1.0;
     }
+  }
+
+  if (!strat.empty()) {
+    assert(is_valid_strategy(strat));
   }
 
   return max_val;
 }
 
-template <typename T> Traverser<T>::Traverser() {
-  treeplex[0].infosets.reserve(5000000);
-  treeplex[1].infosets.reserve(5000000);
+void Treeplex::regret_to_bh(RealBuf buf) const {
+  CHECK(is_valid_vector(buf), "Buffer validation fails");
 
-  treeplex[0].infosets[0] =
-      InfosetMetadata{.legal_actions = 0b111111111, .infoset_id = UINT32_MAX};
-  treeplex[1].infosets[0] =
-      InfosetMetadata{.legal_actions = 0b111111111, .infoset_id = UINT32_MAX};
+  for (const auto &it : infosets) {
+    const uint32_t i = it.second.infoset_id;
+    const uint32_t a = it.second.legal_actions;
+    relu_normalize(buf.subspan(i * 9, 9), a);
+  }
+
+  assert(is_valid_strategy(buf));
+}
+
+template <typename T> Traverser<T>::Traverser() {
+  for (auto p : {0, 1}) {
+    treeplex[p] = std::make_shared<Treeplex>();
+    treeplex[p]->infosets.reserve(5000000);
+  }
+
+  { // Insert data for root infoset
+    T root;
+    treeplex[0]->infosets[root.get_infoset()] = InfosetMetadata{
+        .legal_actions = root.available_actions(), .infoset_id = UINT32_MAX};
+    uint8_t a = 0;
+    for (a = 0; a < 9 && !is_valid(root.available_actions(), a); ++a)
+      ;
+    root.next(a);
+    assert(root.player() == 1);
+    treeplex[1]->infosets[root.get_infoset()] = InfosetMetadata{
+        .legal_actions = root.available_actions(), .infoset_id = UINT32_MAX};
+  }
 
   INFO("discovering infosets (num threads: %d)...", omp_get_max_threads());
   uint64_t count = 10;
@@ -210,16 +273,20 @@ template <typename T> Traverser<T>::Traverser() {
     T s{};
     {
       const uint8_t a = i % 9;
-      assert(s.available_actions() & (1 << a));
+      assert(treeplex[0]->infosets.count(s.get_infoset()));
+      if (!is_valid(s.available_actions(), a))
+        continue;
       s.next(a);
     }
     {
       const uint8_t a = i / 9;
-      assert(s.available_actions() & (1 << a));
+      assert(s.player() == 1 && treeplex[1]->infosets.count(s.get_infoset()));
+      if (!is_valid(s.available_actions(), a))
+        continue;
       s.next(a);
     }
 
-    std::array<InfosetMap, 2> thread_infosets;
+    PerPlayer<InfosetMap> thread_infosets;
     const uint64_t thread_count =
         ::discover_infosets_thread(s, &thread_infosets);
     count += thread_count;
@@ -230,27 +297,39 @@ template <typename T> Traverser<T>::Traverser() {
 
 #pragma omp critical
     {
-      treeplex[0].infosets.insert(thread_infosets[0].begin(),
-                                  thread_infosets[0].end());
-      treeplex[1].infosets.insert(thread_infosets[1].begin(),
-                                  thread_infosets[1].end());
+      for (auto p : {0, 1})
+        treeplex[p]->infosets.insert(thread_infosets[p].begin(),
+                                     thread_infosets[p].end());
     }
   }
   INFO("... discovery terminated. Found %.2fM infosets across %.2fB nodes",
-       (treeplex[0].infosets.size() + treeplex[1].infosets.size()) / 1e6,
+       (treeplex[0]->infosets.size() + treeplex[1]->infosets.size()) / 1e6,
        count / 1e9);
 
 #ifdef DEBUG
-  for (int p = 0; p < 2; ++p) {
-    INFO("checking infosets of player %d...", p + 1);
-    for (const auto &it : treeplex[p].infosets) {
+  PerPlayer<uint64_t> root_infoset_keys = {0, 0};
+  root_infoset_keys[0] = T{}.get_infoset();
+  {
+    T state;
+    uint8_t a = 0;
+    for (a = 0; a < 9 && !is_valid(state.available_actions(), a); ++a)
+      ;
+    state.next(a);
+    root_infoset_keys[1] = state.get_infoset();
+  }
+  INFO("root infosets: %ld, %ld", root_infoset_keys[0], root_infoset_keys[1]);
+  for (auto p : {0, 1}) {
+    INFO("checking infosets of player %d...", p);
+    for (const auto &it : treeplex[p]->infosets) {
       const uint64_t infoset = it.first;
-      if (infoset) {
+      if (infoset != root_infoset_keys[p]) {
         const uint64_t parent = parent_infoset(infoset);
         CHECK(parent <= infoset, "Parent infoset is greater than child");
-        CHECK(treeplex[p].infosets.count(parent),
-              "Parent infoset %ld of %ld not found", parent, infoset);
-        CHECK(treeplex[p].infosets[parent].legal_actions &
+        CHECK(treeplex[p]->infosets.count(parent),
+              "Parent infoset %ld (%s) of %ld (%s) not found", parent,
+              infoset_desc(parent).c_str(), infoset,
+              infoset_desc(infoset).c_str());
+        CHECK(treeplex[p]->infosets[parent].legal_actions &
                   (1u << parent_action(infoset)),
               "Parent action is illegal");
       }
@@ -261,81 +340,91 @@ template <typename T> Traverser<T>::Traverser() {
 
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    treeplex[p].infoset_keys.reserve(treeplex[p].infosets.size());
-    treeplex[p].parent_index.resize(treeplex[p].infosets.size());
-    treeplex[p].legal_actions.resize(treeplex[p].infosets.size());
-    treeplex[p].parent_index[0] = UINT32_MAX;
+    treeplex[p]->infoset_keys.reserve(treeplex[p]->infosets.size());
+    treeplex[p]->parent_index.resize(treeplex[p]->infosets.size());
+    treeplex[p]->legal_actions.resize(treeplex[p]->infosets.size());
 
-    for (auto &it : treeplex[p].infosets) {
-      treeplex[p].infoset_keys.push_back(it.first);
+    for (auto &it : treeplex[p]->infosets) {
+      treeplex[p]->infoset_keys.push_back(it.first);
     }
     INFO("sorting infoset and assigning indices for player %d...", p + 1);
-    std::sort(treeplex[p].infoset_keys.begin(), treeplex[p].infoset_keys.end());
-    for (uint32_t i = 0; i < treeplex[p].infoset_keys.size(); ++i) {
-      const uint64_t infoset = treeplex[p].infoset_keys[i];
-      assert(treeplex[p].infosets.count(infoset));
+    std::sort(treeplex[p]->infoset_keys.begin(),
+              treeplex[p]->infoset_keys.end());
+    for (uint32_t i = 0; i < treeplex[p]->infoset_keys.size(); ++i) {
+      const uint64_t infoset = treeplex[p]->infoset_keys[i];
+      assert(treeplex[p]->infosets.count(infoset));
 
-      auto &info = treeplex[p].infosets[infoset];
+      auto &info = treeplex[p]->infosets[infoset];
       info.infoset_id = i;
       if (i) {
-        treeplex[p].parent_index[i] =
-            treeplex[p].infosets[parent_infoset(infoset)].infoset_id;
+        treeplex[p]->parent_index[i] =
+            treeplex[p]->infosets[parent_infoset(infoset)].infoset_id;
       }
-      treeplex[p].legal_actions[i] = info.legal_actions;
+      treeplex[p]->legal_actions[i] = info.legal_actions;
     }
   }
-  assert(*treeplex[0].infoset_keys.begin() == 0);
-  assert(*treeplex[1].infoset_keys.begin() == 0);
-  assert(treeplex[0].infoset_keys.size() == treeplex[0].infosets.size() &&
-         treeplex[0].parent_index.size() == treeplex[0].infosets.size());
-  assert(treeplex[1].infoset_keys.size() == treeplex[1].infosets.size() &&
-         treeplex[1].parent_index.size() == treeplex[1].infosets.size());
 
-  for (int i = 0; i < 9; ++i) {
-    bufs_[0][i].resize(treeplex[0].num_infosets() * 9);
-    bufs_[1][i].resize(treeplex[1].num_infosets() * 9);
+  for (auto player : {0, 1}) {
+    assert(treeplex[player]->infoset_keys.size() ==
+               treeplex[player]->infosets.size() &&
+           treeplex[player]->parent_index.size() ==
+               treeplex[player]->infosets.size());
+
+    for (int i = 0; i < 9; ++i) {
+      bufs_[player][i].resize(treeplex[player]->num_infosets() * 9);
+    }
+
+    gradients[player].resize(treeplex[player]->num_infosets() * 9, 0.0);
+    sf_strategies_[player].resize(treeplex[player]->num_infosets() * 9, 0.0);
   }
-  gradients[0].resize(treeplex[0].num_infosets() * 9, 0.0);
-  gradients[1].resize(treeplex[1].num_infosets() * 9, 0.0);
-  sf_strategies_[0].resize(treeplex[0].num_infosets() * 9, 0.0);
-  sf_strategies_[1].resize(treeplex[1].num_infosets() * 9, 0.0);
 
   INFO("... all done.");
 }
 
 template <typename T>
-void Traverser<T>::compute_gradients(
-    const std::array<const Real *, 2> strategies) {
+void Traverser<T>::compute_gradients(const PerPlayer<ConstRealBuf> strategies) {
   INFO("begin gradient computation (num threads: %d)...",
        omp_get_max_threads());
-  treeplex[0].validate_strategy(strategies[0]);
-  treeplex[0].validate_vector(&gradients[0][0]);
-  treeplex[1].validate_strategy(strategies[1]);
-  treeplex[1].validate_vector(&gradients[1][0]);
+  for (auto p : {0, 1}) {
+    CHECK(treeplex[p]->is_valid_strategy(strategies[p]), "Invalid strategy");
+    CHECK(treeplex[p]->is_valid_vector(gradients[p]),
+          "Buffer validation fails");
+  }
+
   compute_sf_strategies_(strategies);
 
-  gradients[0] = 0.0;
-  gradients[1] = 0.0;
+  for (auto p : {0, 1}) {
+    gradients[p] = 0.0;
 
-  for (int i = 0; i < 9; ++i) {
-    bufs_[0][i] = 0.0;
-    bufs_[1][i] = 0.0;
+    for (int i = 0; i < 9; ++i) {
+      bufs_[p][i] = 0.0;
+    }
   }
 
   uint32_t num_finished = 0;
 #pragma omp parallel for
   for (unsigned i = 0; i < 9 * 9; ++i) {
+    PerPlayer<uint32_t> parent_seqs = {0, 0};
     T s{};
-    assert(!s.get_infoset());
+
+    if (!is_valid(s.available_actions(), i % 9))
+      continue;
+    assert(s.player() == 0);
+    parent_seqs[0] =
+        treeplex[0]->infosets.at(s.get_infoset()).infoset_id * 9 + (i % 9);
     s.next(i % 9); // pl1's move
-    assert(!s.get_infoset());
+
+    if (!is_valid(s.available_actions(), i / 9))
+      continue;
+    assert(s.player() == 1);
+    parent_seqs[1] =
+        treeplex[1]->infosets.at(s.get_infoset()).infoset_id * 9 + (i / 9);
     s.next(i / 9); // pl2's move
 
-    const std::array<uint32_t, 2> parent_seqs = {i % 9, i / 9};
-    const std::array<Real *, 2> thread_gradients = {&bufs_[0][i / 9][0],
-                                                    &bufs_[1][i % 9][0]};
+    const PerPlayer<RealBuf> thread_gradients = {bufs_[0][i / 9],
+                                                 bufs_[1][i % 9]};
     ::compute_gradients_thread(s, parent_seqs, treeplex,
-                               {&sf_strategies_[0][0], &sf_strategies_[1][0]},
+                               {sf_strategies_[0], sf_strategies_[1]},
                                thread_gradients);
 
 #pragma omp critical
@@ -351,53 +440,45 @@ void Traverser<T>::compute_gradients(
 
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    for (int j = 0; j < 9; ++j)
+    for (int j = 0; j < 9; ++j) {
+      assert(treeplex[p]->is_valid_vector(bufs_[p][j]));
       gradients[p] += bufs_[p][j];
+    }
   }
 
   INFO("... all done.");
+#ifndef NDEBUG
+  for (auto p : {0, 1}) {
+    assert(treeplex[p]->is_valid_vector(gradients[p]));
+  }
+#endif
 }
 
 template <typename T>
-EvExpl Traverser<T>::ev_and_exploitability(
-    const std::array<const Real *, 2> strategies) {
+EvExpl
+Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
   EvExpl out;
 
   INFO("begin exploitability computation...");
   compute_gradients(strategies);
-  out.gradient[0] = gradients[0];
-  out.gradient[1] = gradients[1];
+  for (auto p : {0, 1})
+    out.gradient[p] = gradients[p];
 
   INFO("computing expected value...");
-  Real ev0 = 0.0;
-  for (uint32_t i = 0; i < treeplex[0].num_infosets() * 9; ++i) {
-    ev0 += sf_strategies_[0][i] * gradients[0][i];
-  }
-  out.ev0 = ev0;
+  Real ev0 = dot(sf_strategies_[0], gradients[0]);
+  Real ev1 = dot(sf_strategies_[1], gradients[1]);
+  out.ev0 = (ev0 - ev1) / 2;
 
-#ifdef DEBUG
-  {
-    INFO("double checking expected value...");
-
-    Real ev1 = 0.0;
-    for (uint32_t i = 0; i < treeplex[1].num_infosets() * 9; ++i) {
-      ev1 += sf_strategies_[1][i] * gradients[1][i];
-    }
-
-    CHECK(std::abs(ev0 + ev1) < 1e-3, "Expected values differ: %.6f != %.6f",
-          ev0, ev1);
-  }
-#endif
-
+  CHECK(std::abs(ev0 + ev1) < 1e-3, "Expected values differ: %.6f != %.6f", ev0,
+        ev1);
   out.expl = {ev0, -ev0};
-  out.best_response[0].resize(treeplex[0].num_infosets() * 9, 0.0);
-  out.best_response[1].resize(treeplex[1].num_infosets() * 9, 0.0);
+  for (auto p : {0, 1})
+    out.best_response[p].resize(treeplex[p]->num_infosets() * 9, 0.0);
 
   INFO("computing exploitabilities...");
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    out.expl[1 - p] +=
-        treeplex[p].br(&gradients[p][0], &out.best_response[p][0]);
+    out.expl[1 - p] += treeplex[p]->br(gradients[p], out.best_response[p]);
   }
 
   INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, out.expl[0],
@@ -408,19 +489,20 @@ EvExpl Traverser<T>::ev_and_exploitability(
 template <typename T>
 void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
                                                 bool *buf) const {
-  CHECK(p == 0 || p == 1, "p must be 0 or 1 (got %u)", p);
+  CHECK(p == 0 || p == 1, "player must be 0 or 1 (found %u)", p);
   const uint32_t ncols = 27 + 81;
-  const uint32_t nrows = treeplex[p].num_infosets();
+  const uint32_t nrows = treeplex[p]->num_infosets();
   memset(buf, 0, nrows * ncols * sizeof(bool));
 
 #pragma omp parallel for
   for (uint32_t i = 0; i < nrows; ++i) {
     bool *rowbuf = buf + (i * ncols);
-    uint64_t info = treeplex[p].infoset_keys[i];
+    uint64_t info = treeplex[p]->infoset_keys[i];
     // Count total number of moves
     uint8_t n_actions = 0;
-    for (; info; ++n_actions, info >>= 5) {}
-    info = treeplex[p].infoset_keys[i];
+    for (; info; ++n_actions, info >>= 5) {
+    }
+    info = treeplex[p]->infoset_keys[i];
     // Mark first 9 cells as empty
     memset(rowbuf, 1, 9 * sizeof(bool));
     for (uint32_t j = 0; info; info >>= 5, ++j) {
@@ -429,25 +511,34 @@ void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
 
       rowbuf[cell] = false;
       rowbuf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
-      rowbuf[18 + cell] = ((p + placed) % 2 == 1);  // p0 moves
-      // we are reading moves from latest to oldest, and we want to store moves from oldest to latest
+      rowbuf[18 + cell] = ((p + placed) % 2 == 1); // p0 moves
+      // we are reading moves from latest to oldest, and we want to store moves
+      // from oldest to latest
       rowbuf[27 + 9 * (n_actions - j - 1) + cell] = true;
     }
   }
 }
 
 template <typename T>
+Averager Traverser<T>::new_averager(const uint8_t player,
+                                    const AveragingStrategy avg) {
+  CHECK(player == 0 || player == 1, "Invalid player %d", player);
+  return Averager(treeplex[player], avg);
+}
+
+template <typename T>
 void Traverser<T>::compute_sf_strategies_(
-    const std::array<const Real *, 2> strategies) {
+    const PerPlayer<ConstRealBuf> strategies) {
 #pragma omp parallel for
   for (int p = 0; p < 2; ++p) {
-    memcpy(&sf_strategies_[p][0], strategies[p],
-           treeplex[p].num_infosets() * 9 * sizeof(Real));
-    treeplex[p].bh_to_sf(&sf_strategies_[p][0]);
+    std::copy(strategies[p].begin(), strategies[p].end(),
+              std::begin(sf_strategies_[p]));
+    treeplex[p]->bh_to_sf(sf_strategies_[p]);
   }
 }
 
-template class Traverser<DhState<false>>;
-template class Traverser<DhState<true>>;
-template class Traverser<PtttState<false>>;
-template class Traverser<PtttState<true>>;
+template struct Traverser<DhState<false>>;
+template struct Traverser<DhState<true>>;
+template struct Traverser<CornerDhState>;
+template struct Traverser<PtttState<false>>;
+template struct Traverser<PtttState<true>>;

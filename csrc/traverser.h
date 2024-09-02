@@ -1,16 +1,14 @@
 #pragma once
+
 #include <array>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
-#include <cstring>
-#include <unordered_map>
+#include <span>
 #include <valarray>
 #include <vector>
 
-#include "dh_state.h"
-#include "log.h"
-#include "pttt_state.h"
-
-using Real = double;
+#include "averager.h"
+#include "utils.h"
 
 struct InfosetMetadata {
   uint32_t legal_actions;
@@ -23,7 +21,7 @@ struct InfosetMetadata {
 };
 
 // Maps from infoset to legal action mask
-using InfosetMap = std::unordered_map<uint64_t, InfosetMetadata>;
+using InfosetMap = boost::unordered_flat_map<uint64_t, InfosetMetadata>;
 
 struct Treeplex {
   InfosetMap infosets;
@@ -32,30 +30,33 @@ struct Treeplex {
   std::vector<uint32_t> parent_index;
 
   uint32_t num_infosets() const { return infoset_keys.size(); }
-  void validate_vector(const Real *buf) const;
-  void validate_strategy(const Real *buf) const;
-  void set_uniform(Real *buf) const;
-  void bh_to_sf(Real *buf) const;
-  Real br(Real *grad, Real *strat = nullptr) const;
+  bool is_valid_vector(ConstRealBuf buf) const;
+  bool is_valid_strategy(ConstRealBuf buf) const;
+  void set_uniform(RealBuf buf) const;
+  void bh_to_sf(RealBuf buf) const;
+  void sf_to_bh(RealBuf buf) const;
+  Real br(RealBuf grad, RealBuf strat = std::span<Real>()) const;
+  void regret_to_bh(RealBuf buf) const;
 };
 
 struct EvExpl {
   Real ev0;
   // gradient of utility wrt the player strategies
-  std::array<std::valarray<Real>, 2> gradient;
+  PerPlayer<std::valarray<Real>> gradient;
   // expl[0] is how exploitable player 0 is by a best-responding player 1
-  std::array<Real, 2> expl;
+  PerPlayer<Real> expl;
   // best_response[0] is the best response to player 1's strategy
-  std::array<std::valarray<Real>, 2> best_response;
+  PerPlayer<std::valarray<Real>> best_response;
 };
 
 template <typename T> struct Traverser {
-  Treeplex treeplex[2];
-  std::valarray<Real> gradients[2];
-
+  PerPlayer<std::shared_ptr<Treeplex>> treeplex;
+  PerPlayer<std::valarray<Real>> gradients;
   Traverser();
-  void compute_gradients(const std::array<const Real *, 2> strategies);
-  EvExpl ev_and_exploitability(const std::array<const Real *, 2> strategies);
+
+  void compute_gradients(const PerPlayer<ConstRealBuf> strategies);
+  EvExpl ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies);
+  Averager new_averager(const uint8_t player, const AveragingStrategy avg);
 
   // 27 bits
   // empty mask, pl1 mask, pl2 mask
@@ -64,8 +65,8 @@ template <typename T> struct Traverser {
   void compute_openspiel_infostates(const uint8_t player, bool *buf) const;
 
 private:
-  std::valarray<Real> bufs_[2][9];
-  std::valarray<Real> sf_strategies_[2];
+  PerPlayer<std::array<std::valarray<Real>, 9>> bufs_;
+  PerPlayer<std::valarray<Real>> sf_strategies_;
 
-  void compute_sf_strategies_(const std::array<const Real *, 2> strategies);
+  void compute_sf_strategies_(const PerPlayer<ConstRealBuf> strategies);
 };

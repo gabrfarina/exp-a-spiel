@@ -1,3 +1,6 @@
 __pycache__
+exps
+.cache
 .pixi
 build
+pypy_build
