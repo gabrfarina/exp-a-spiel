@@ -488,15 +488,15 @@ Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
 
 template <typename T>
 void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
-                                                bool *buf) const {
+                                                std::span<bool> buf) const {
   CHECK(p == 0 || p == 1, "player must be 0 or 1 (found %u)", p);
   const uint32_t ncols = 27 + 81;
   const uint32_t nrows = treeplex[p]->num_infosets();
-  memset(buf, 0, nrows * ncols * sizeof(bool));
+  std::fill(buf.begin(), buf.end(), false);
 
 #pragma omp parallel for
   for (uint32_t i = 0; i < nrows; ++i) {
-    bool *rowbuf = buf + (i * ncols);
+    std::span<bool> rowbuf = buf.subspan(i * ncols, ncols);
     uint64_t info = treeplex[p]->infoset_keys[i];
     // Count total number of moves
     uint8_t n_actions = 0;
@@ -504,14 +504,15 @@ void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
     }
     info = treeplex[p]->infoset_keys[i];
     // Mark first 9 cells as empty
-    memset(rowbuf, 1, 9 * sizeof(bool));
+    std::fill(rowbuf.begin(), rowbuf.begin() + 9, true);
     for (uint32_t j = 0; info; info >>= 5, ++j) {
       const uint8_t cell = ((info >> 1) & 0b1111) - 1;
       const bool placed = info & 1;
+      assert(cell < 9);
 
       rowbuf[cell] = false;
-      rowbuf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
-      rowbuf[18 + cell] = ((p + placed) % 2 == 1); // p0 moves
+      rowbuf[9 + cell] = ((p + placed) % 2 == 1);
+      rowbuf[18 + cell] = ((p + placed) % 2 == 0);
       // we are reading moves from latest to oldest, and we want to store moves
       // from oldest to latest
       rowbuf[27 + 9 * (n_actions - j - 1) + cell] = true;

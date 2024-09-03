@@ -57,12 +57,8 @@ template <typename T> struct Traverser {
   void compute_gradients(const PerPlayer<ConstRealBuf> strategies);
   EvExpl ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies);
   Averager new_averager(const uint8_t player, const AveragingStrategy avg);
-
-  // 27 bits
-  // empty mask, pl1 mask, pl2 mask
-  //
-  // + 9 moves: each as a one-hot encoding as 9 bits
-  void compute_openspiel_infostates(const uint8_t player, bool *buf) const;
+  void compute_openspiel_infostates(const uint8_t player,
+                                    std::span<bool> buf) const;
 
 private:
   PerPlayer<std::array<std::valarray<Real>, 9>> bufs_;

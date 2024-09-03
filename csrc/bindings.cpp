@@ -169,7 +169,7 @@ void register_types(py::module &m, const std::string &prefix) {
              const std::string infoset_desc) -> uint32_t {
             uint64_t infoset_key = 0;
             CHECK(infoset_desc.size() % 2 == 0,
-                  "Infoset desc does not have even lenght");
+                  "Infoset desc does not have even length");
             for (int i = 0; i < infoset_desc.size() / 2; ++i) {
               const char cell = infoset_desc[2 * i];
               const char outcome = infoset_desc[2 * i + 1];
@@ -209,7 +209,7 @@ void register_types(py::module &m, const std::string &prefix) {
                   "Invalid player (expected 0 or 1; found %u)", p);
             const uint32_t nrows = traverser.treeplex[p]->num_infosets();
             std::valarray<bool> buf(nrows * T::OPENSPIEL_INFOSTATE_SIZE);
-            traverser.compute_openspiel_infostates(p, &buf[0]);
+            traverser.compute_openspiel_infostates(p, buf);
             return BoolNdArray(
                 std::array<py::ssize_t, 2>{nrows, T::OPENSPIEL_INFOSTATE_SIZE},
                 &buf[0]);
