@@ -8,6 +8,7 @@
 #include <omp.h>
 
 #include "averager.h"
+#include "base_state.h"
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
@@ -498,11 +499,8 @@ void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
   for (uint32_t i = 0; i < nrows; ++i) {
     std::span<bool> rowbuf = buf.subspan(i * ncols, ncols);
     uint64_t info = treeplex[p]->infoset_keys[i];
-    // Count total number of moves
-    uint8_t n_actions = 0;
-    for (; info; ++n_actions, info >>= 5) {
-    }
-    info = treeplex[p]->infoset_keys[i];
+    const uint8_t n_actions = num_actions(info);
+
     // Mark first 9 cells as empty
     std::fill(rowbuf.begin(), rowbuf.begin() + 9, true);
     for (uint32_t j = 0; info; info >>= 5, ++j) {
@@ -511,8 +509,8 @@ void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
       assert(cell < 9);
 
       rowbuf[cell] = false;
-      rowbuf[9 + cell] = ((p + placed) % 2 == 1);
-      rowbuf[18 + cell] = ((p + placed) % 2 == 0);
+      rowbuf[9 + cell] = ((p + placed) % 2 == 0);  // p1 first...
+      rowbuf[18 + cell] = ((p + placed) % 2 == 1); // ... then p0 (not a typo)
       // we are reading moves from latest to oldest, and we want to store moves
       // from oldest to latest
       rowbuf[27 + 9 * (n_actions - j - 1) + cell] = true;
