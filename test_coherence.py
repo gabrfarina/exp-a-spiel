@@ -15,22 +15,22 @@ def to_bool(x):
 
 # games to test (compare openspiel implementation with dh3 implementation)
 GAMES = {
-    # 'Classical Phantom Tic-Tac-Toe': (
-    #     pyspiel.load_game('phantom_ttt'),
-    #     dh3.PtttState
-    # ),
-    # 'Abrupt Phantom Tic-Tac-Toe': (
-    #     None, # openspiel doesn't have an abrupt pttt implementation afaik
-    #     dh3.AbruptPtttState
-    # ),
+    'Classical Phantom Tic-Tac-Toe': (
+        pyspiel.load_game('phantom_ttt'),
+        dh3.PtttState
+    ),
+    'Abrupt Phantom Tic-Tac-Toe': (
+        None, # openspiel doesn't have an abrupt pttt implementation afaik
+        dh3.AbruptPtttState
+    ),
     'Classical 3x3 Dark Hex': (
         pyspiel.load_game('dark_hex(board_size=3,gameversion=cdh)'),
         dh3.DhState
     ),
-    # 'Abrupt 3x3 Dark Hex': (
-    #     pyspiel.load_game('dark_hex(board_size=3,gameversion=adh)'),
-    #     dh3.AbruptDhState
-    # ),
+    'Abrupt 3x3 Dark Hex': (
+        pyspiel.load_game('dark_hex(board_size=3,gameversion=adh)'),
+        dh3.AbruptDhState
+    ),
 }
 
 # number of random runs for each game
@@ -72,30 +72,7 @@ for game_str, (os_game, dh3_state_fn) in GAMES.items():
 
                 os_ist = to_bool(os_state.information_state_tensor())
                 dh_ist = to_bool(dh3_state.compute_openspiel_infostate())
-
-                
-                    
-                if os_ist.shape != dh_ist.shape or not np.all(os_ist == dh_ist):
-                    print(os_ist.shape, dh_ist.shape)
-                    print('information_state_tensor')
-                    print('history', actions_history)
-                    print('player', os_player, dh3_player)
-                    print(os_state)
-                    print(dh3_state)
-
-                    os_board = os_ist[:81]
-                    dh3_board = dh_ist[:81]
-                    os_board_index, = np.where(os_board)
-                    dh3_board_index, = np.where(dh3_board)
-                    print(os_board_index % 9 - 4, os_board_index // 9)
-                    print(dh3_board_index % 9 - 4, dh3_board_index // 9)
-
-                    os_hist = os_state.information_state_tensor(os_player)[81:]
-                    dh3_hist = dh3_state.compute_openspiel_infostate()[81:]
-                    print(np.where(to_bool(os_hist))[0] % 9, np.where(to_bool(os_hist))[0] // 9)
-                    print(np.where(to_bool(dh3_hist))[0] % 9, np.where(to_bool(dh3_hist))[0] // 9)
-                    print()
-                    raise ValueError('information_state_tensor')
+                assert (os_ist == dh_ist).all(), 'information_state_tensor'
                 
                 # sample random action
                 action = np.random.choice(oh_legal_actions)
