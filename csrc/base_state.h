@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <span>
+#include <stdexcept>
 #include <string>
 
 const uint8_t TIE = 0xee;
@@ -77,25 +79,25 @@ template <bool abrupt> struct BaseState {
     return info;
   }
 
-  void compute_openspiel_infostate(bool *buf) const {
-    uint64_t info = get_infoset();
-    const uint32_t nfeatures = 27 + 81;
-    memset(buf, 0, nfeatures * sizeof(bool));
+  // void compute_openspiel_infostate(bool *buf) const {
+  //   uint64_t info = get_infoset();
+  //   const uint32_t nfeatures = 27 + 81;
+  //   memset(buf, 0, nfeatures * sizeof(bool));
 
-    // Mark first 9 cells as empty
-    memset(buf, 1, 9 * sizeof(bool));
-    for (uint32_t j = 0; info; info >>= 5, ++j) {
-      const uint8_t cell = ((info >> 1) & 0b1111) - 1;
-      const bool placed = info & 1;
+  //   // Mark first 9 cells as empty
+  //   memset(buf, 1, 9 * sizeof(bool));
+  //   for (uint32_t j = 0; info; info >>= 5, ++j) {
+  //     const uint8_t cell = ((info >> 1) & 0b1111) - 1;
+  //     const bool placed = info & 1;
 
-      buf[cell] = false;
-      buf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
-      buf[18 + cell] = ((p + placed) % 2 == 1); // p0 moves
-      // we are reading moves from latest to oldest, and we want to store moves
-      // from oldest to latest
-      buf[27 + 9 * (t[p] - 1 - j) + cell] = true;
-    }
-  }
+  //     buf[cell] = false;
+  //     buf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
+  //     buf[18 + cell] = ((p + placed) % 2 == 1); // p0 moves
+  //     // we are reading moves from latest to oldest, and we want to store moves
+  //     // from oldest to latest
+  //     buf[27 + 9 * (t[p] - 1 - j) + cell] = true;
+  //   }
+  // }
 };
 
 // get total number of moves played so far

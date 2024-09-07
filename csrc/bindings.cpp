@@ -21,9 +21,14 @@
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
 using BoolNdArray = py::array_t<bool, py::array::c_style>;
+template <typename T = ConstRealBuf>
+T to_const_span(const NdArray &arr) {
+  return T(arr.data(), arr.size());
+}
 
-ConstRealBuf to_const_span(const NdArray &arr) {
-  return ConstRealBuf(arr.data(), arr.size());
+template <typename T = RealBuf>
+T to_mut_span(NdArray &arr) {
+  return T(arr.mutable_data(), arr.size());
 }
 
 std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
@@ -42,7 +47,7 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   return NdArray(shape, buf.data());
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
-} // namespace
+}  // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -112,11 +117,11 @@ void register_types(py::module &m, const std::string &prefix) {
            })
       .def("compute_openspiel_infostate",
            [](const T &s) -> BoolNdArray {
-             std::valarray<bool> buf(T::OPENSPIEL_INFOSTATE_SIZE);
-             s.compute_openspiel_infostate(&buf[0]);
+             std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE> buf;
+             T::compute_openspiel_infostate(s.player(), s.get_infoset(), buf);
              return BoolNdArray(
                  std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
-                 &buf[0]);
+                 buf.data());
            })
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string)
@@ -170,7 +175,7 @@ void register_types(py::module &m, const std::string &prefix) {
             uint64_t infoset_key = 0;
             CHECK(infoset_desc.size() % 2 == 0,
                   "Infoset desc does not have even length");
-            for (int i = 0; i < infoset_desc.size() / 2; ++i) {
+            for (size_t i = 0; i < infoset_desc.size() / 2; ++i) {
               const char cell = infoset_desc[2 * i];
               const char outcome = infoset_desc[2 * i + 1];
               CHECK(cell >= '0' && cell <= '9',
@@ -215,6 +220,17 @@ void register_types(py::module &m, const std::string &prefix) {
                 &buf[0]);
           },
           py::arg("player"))
+      .def("compute_openspiel_infostate",
+           [](const Traverser<T> &traverser, const uint8_t p,
+              const uint32_t state) -> BoolNdArray {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %u)", p);
+             std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE> buf;
+             traverser.compute_openspiel_infostate(p, state, buf);
+             return BoolNdArray(
+                 std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
+                 buf.data());
+           })
       .def_property_readonly("NUM_INFOS_PL0",
                              [](const Traverser<T> &traverser) {
                                return traverser.treeplex[0]->num_infosets();
@@ -325,7 +341,7 @@ PYBIND11_MODULE(pydh3, m) {
                 << ", predictive=" << conf.predictive << ")";
              return ss.str();
            })
-      .def_property_readonly_static( //
+      .def_property_readonly_static(  //
           "PCFRP",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,
@@ -334,7 +350,7 @@ PYBIND11_MODULE(pydh3, m) {
                            .rmplus = true,
                            .predictive = true};
           })
-      .def_property_readonly_static( //
+      .def_property_readonly_static(  //
           "DCFR",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,
