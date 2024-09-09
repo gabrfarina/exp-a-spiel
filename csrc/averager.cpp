@@ -1,5 +1,6 @@
 #include "averager.h"
 #include "traverser.h"
+#include <cmath>
 #include <memory>
 
 namespace {
@@ -57,7 +58,7 @@ void Averager::push(ConstRealBuf strategy, const std::optional<Real> weight) {
     weight_sum_ += *weight;
     alpha = *weight / weight_sum_;
   }
-
+  CHECK(std::isfinite(alpha) && alpha <= 1 && alpha >= 0, "Invalid alpha %f", alpha);
   INFO("Pushing strategy with alpha %f", alpha);
   buf_.resize(strategy.size());
   std::copy(strategy.begin(), strategy.end(), std::begin(buf_));
