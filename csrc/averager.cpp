@@ -39,6 +39,8 @@ void Averager::push(ConstRealBuf strategy, const std::optional<Real> weight) {
   if (avg_ == CUSTOM) {
     CHECK(!!weight && *weight >= 0.0, "Weight for custom averaging strategy "
                                       "must be specified and nonnegative");
+    if (*weight == 0)
+      return; //gracefully handle zero weight
   } else {
     CHECK(!weight, "Cannot specify weight for non-CUSTOM averaging strategies");
   }
