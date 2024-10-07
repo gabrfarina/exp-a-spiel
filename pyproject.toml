@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit_build_core"]
+requires = ["scikit_build_core", "pybind11"]
 build-backend = "scikit_build_core.build"
 
 
@@ -20,7 +20,9 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-
+dependencies = [
+  "numpy<2",
+]
 [tool.pixi.project]
 channels = ["conda-forge", "nodefaults"]
 platforms = ["linux-64"]
