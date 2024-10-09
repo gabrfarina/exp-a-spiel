@@ -1,9 +1,7 @@
-#include <pybind11/detail/common.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/stl.h>
-#include <sys/types.h>
 
 #include <array>
 #include <cstdint>
@@ -22,9 +20,15 @@
 
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
+using BoolNdArray = py::array_t<bool, py::array::c_style>;
+template <typename T = ConstRealBuf>
+T to_const_span(const NdArray &arr) {
+  return T(arr.data(), arr.size());
+}
 
-ConstRealBuf to_const_span(const NdArray &arr) {
-  return ConstRealBuf(arr.data(), arr.size());
+template <typename T = RealBuf>
+T to_mut_span(NdArray &arr) {
+  return T(arr.mutable_data(), arr.size());
 }
 
 std::array<py::ssize_t, 2> mat_shape(ConstRealBuf buf) {
@@ -43,7 +47,7 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   return NdArray(shape, buf.data());
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
-} // namespace
+}  // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -111,8 +115,19 @@ void register_types(py::module &m, const std::string &prefix) {
            [](const T &s) -> std::string {
              return infoset_desc(s.get_infoset());
            })
+      .def("compute_openspiel_infostate",
+           [](const T &s) -> BoolNdArray {
+             std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE> buf;
+             T::compute_openspiel_infostate(s.player(), s.get_infoset(), buf);
+             return BoolNdArray(
+                 std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
+                 buf.data());
+           })
       .def("__str__", &T::to_string)
-      .def("__repr__", &T::to_string);
+      .def("__repr__", &T::to_string)
+      .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
+        return T::OPENSPIEL_INFOSTATE_SIZE;
+      });
 
   py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(
       m, (prefix + "Traverser").c_str())
@@ -153,6 +168,32 @@ void register_types(py::module &m, const std::string &prefix) {
             return infoset_desc(key);
           },
           py::arg("player"), py::arg("row"))
+      .def(
+          "row_for_infoset",
+          [](const Traverser<T> &traverser, const uint8_t p,
+             const std::string infoset_desc) -> uint32_t {
+            uint64_t infoset_key = 0;
+            CHECK(infoset_desc.size() % 2 == 0,
+                  "Infoset desc does not have even length");
+            for (size_t i = 0; i < infoset_desc.size() / 2; ++i) {
+              const char cell = infoset_desc[2 * i];
+              const char outcome = infoset_desc[2 * i + 1];
+              CHECK(cell >= '0' && cell <= '9',
+                    "Invalid cell in infoset desc `%s`", infoset_desc.c_str());
+              CHECK(outcome == '*' || outcome == '.',
+                    "Invalid outcome in infoset desc `%s`",
+                    infoset_desc.c_str());
+              infoset_key <<= 5;
+              infoset_key += 2 * ((cell - '0') + 1);
+              infoset_key += (outcome == '*');
+            }
+
+            auto it = traverser.treeplex[p]->infosets.find(infoset_key);
+            CHECK(it != traverser.treeplex[p]->infosets.end(),
+                  "The given infoset_desc does not exist");
+            return it->second.infoset_id;
+          },
+          py::arg("player"), py::arg("infoset_desc"))
       .def("construct_uniform_strategies",
            [](const Traverser<T> &traverser) -> std::tuple<NdArray, NdArray> {
              PerPlayer<NdArray> out;
@@ -167,6 +208,41 @@ void register_types(py::module &m, const std::string &prefix) {
              return std::make_tuple(out[0], out[1]);
            })
       .def(
+          "compute_openspiel_infostates",
+          [](const Traverser<T> &traverser, const uint8_t p) -> BoolNdArray {
+            CHECK(p == 0 || p == 1,
+                  "Invalid player (expected 0 or 1; found %u)", p);
+            const uint32_t nrows = traverser.treeplex[p]->num_infosets();
+            std::valarray<bool> buf(nrows * T::OPENSPIEL_INFOSTATE_SIZE);
+            traverser.compute_openspiel_infostates(p, buf);
+            return BoolNdArray(
+                std::array<py::ssize_t, 2>{nrows, T::OPENSPIEL_INFOSTATE_SIZE},
+                &buf[0]);
+          },
+          py::arg("player"))
+      .def("compute_openspiel_infostate",
+           [](const Traverser<T> &traverser, const uint8_t p,
+              const uint32_t state) -> BoolNdArray {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %u)", p);
+             std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE> buf;
+             traverser.compute_openspiel_infostate(p, state, buf);
+             return BoolNdArray(
+                 std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
+                 buf.data());
+           })
+      .def_property_readonly("NUM_INFOS_PL0",
+                             [](const Traverser<T> &traverser) {
+                               return traverser.treeplex[0]->num_infosets();
+                             })
+      .def_property_readonly("NUM_INFOS_PL1",
+                             [](const Traverser<T> &traverser) {
+                               return traverser.treeplex[1]->num_infosets();
+                             })
+      .def_property_readonly_static(
+          "OPENSPIEL_INFOSTATE_SIZE",
+          [](py::object) { return T::OPENSPIEL_INFOSTATE_SIZE; })
+      .def(
           "parent_index_and_action",
           [](const Traverser<T> &traverser, const uint8_t p,
              const uint32_t row) {
@@ -180,18 +256,6 @@ void register_types(py::module &m, const std::string &prefix) {
                                   parent_action(key));
           },
           py::arg("player"), py::arg("row"))
-      .def_property(
-          "NUM_INFOS_PL1",
-          [](const Traverser<T> &traverser) {
-            return traverser.treeplex[0]->num_infosets();
-          },
-          nullptr)
-      .def_property(
-          "NUM_INFOS_PL2",
-          [](const Traverser<T> &traverser) {
-            return traverser.treeplex[1]->num_infosets();
-          },
-          nullptr)
       .def("new_averager", &Traverser<T>::new_averager, py::arg("player"),
            py::arg("avg_strategy"));
 
@@ -277,7 +341,7 @@ PYBIND11_MODULE(pydh3, m) {
                 << ", predictive=" << conf.predictive << ")";
              return ss.str();
            })
-      .def_property_readonly_static( //
+      .def_property_readonly_static(  //
           "PCFRP",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,
@@ -286,7 +350,7 @@ PYBIND11_MODULE(pydh3, m) {
                            .rmplus = true,
                            .predictive = true};
           })
-      .def_property_readonly_static( //
+      .def_property_readonly_static(  //
           "DCFR",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,

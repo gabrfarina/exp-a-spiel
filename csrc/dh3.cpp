@@ -18,17 +18,11 @@
 
 int main() {
   INFO("starting dh3 (num threads: %d)", omp_get_max_threads());
-  {
-    std::vector<Real> x = {3, 2, 1};
-    uint32_t mask = 0b111;
-    relu_normalize(x, mask);
-    std::cout << "relu_noramlize: ";
-    for (auto i : x) {
-      std::cout << i << " ";
-    }
-  }
+#ifdef DEBUG
+  INFO("DEBUG is defined");
+#endif
 
-  Traverser<DhState<false>> traverser;
+  Traverser<DhState<true>> traverser;
   std::valarray<Real> strategies[2];
 
   strategies[0].resize(traverser.treeplex[0]->num_infosets() * 9, 0.0);

@@ -9,8 +9,7 @@ inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
   std::string lines[] = {"...", "...", "..."};
 
   for (int i = 0; i < 9; ++i) {
-    if (!x[i])
-      continue;
+    if (!x[i]) continue;
 
     if (x[i] & 1) {
       lines[i / 3][i % 3] = c;
@@ -26,7 +25,10 @@ inline std::string pttt_xvec_str(const uint8_t *x, const char c) {
   return repr;
 }
 
-template <bool abrupt> struct PtttState : public BaseState<abrupt> {
+template <bool abrupt>
+struct PtttState : public BaseState<abrupt> {
+  static constexpr uint32_t OPENSPIEL_INFOSTATE_SIZE = 27 + 81;
+
   uint8_t winner() const {
     const auto &x = this->x;
 
@@ -55,7 +57,7 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
       return TIE;
     }
 
-    return 0xff; // No winner yet
+    return 0xff;  // No winner yet
   }
 
   bool is_terminal() const { return winner() != 0xff; }
@@ -80,5 +82,26 @@ template <bool abrupt> struct PtttState : public BaseState<abrupt> {
     out += "\n** Player 2's board:\n";
     out += pttt_xvec_str(x[1], 'O');
     return out;
+  }
+
+  static void compute_openspiel_infostate(uint8_t player, uint64_t info,
+                                          std::span<bool> buf) {
+    const uint8_t n_actions = num_actions(info);
+    std::fill(buf.begin(), buf.end(), 0);
+    // Mark first 9 cells as empty
+    std::fill(buf.begin(), buf.begin() + 9, true);
+    for (uint32_t j = 0; info; info >>= 5, ++j) {
+      const uint8_t cell = ((info >> 1) & 0b1111) - 1;
+      const bool placed = info & 1;
+      assert(cell < 9);
+
+      buf[cell] = false;
+      buf[9 + cell] = ((player + placed) % 2 == 0);  // p1 first...
+      buf[18 + cell] =
+          ((player + placed) % 2 == 1);  // ... then p0 (not a typo)
+      // we are reading moves from latest to oldest, and we want to store moves
+      // from oldest to latest
+      buf[27 + 9 * (n_actions - j - 1) + cell] = true;
+    }
   }
 };
