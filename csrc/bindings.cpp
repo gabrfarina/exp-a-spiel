@@ -21,13 +21,11 @@
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
 using BoolNdArray = py::array_t<bool, py::array::c_style>;
-template <typename T = ConstRealBuf>
-T to_const_span(const NdArray &arr) {
+template <typename T = ConstRealBuf> T to_const_span(const NdArray &arr) {
   return T(arr.data(), arr.size());
 }
 
-template <typename T = RealBuf>
-T to_mut_span(NdArray &arr) {
+template <typename T = RealBuf> T to_mut_span(NdArray &arr) {
   return T(arr.mutable_data(), arr.size());
 }
 
@@ -47,7 +45,7 @@ auto to_ndarray(std::array<py::ssize_t, N> shape, ConstRealBuf buf) {
   return NdArray(shape, buf.data());
 }
 auto to_ndarray(ConstRealBuf buf) { return to_ndarray(mat_shape(buf), buf); }
-}  // namespace
+} // namespace
 
 struct EvExplPy {
   Real ev0;
@@ -231,6 +229,12 @@ void register_types(py::module &m, const std::string &prefix) {
                  std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
                  buf.data());
            })
+      .def("is_valid_strategy",
+           [](const Traverser<T> &traverser, const uint8_t p,
+              const NdArray &strategy) {
+             return traverser.treeplex[p]->is_valid_strategy(
+                 to_const_span(strategy));
+           })
       .def_property_readonly("NUM_INFOS_PL0",
                              [](const Traverser<T> &traverser) {
                                return traverser.treeplex[0]->num_infosets();
@@ -273,7 +277,9 @@ void register_types(py::module &m, const std::string &prefix) {
   m.def(
       "CfrSolver",
       [](const std::shared_ptr<Traverser<T>> t,
-         const CfrConf &conf) -> CfrSolver<T> { return {t, conf}; },
+         const CfrConf &conf) -> CfrSolver<T> {
+        return {t, conf};
+      },
       py::arg("traverser"), py::arg("cfr_conf"));
 }
 
@@ -341,7 +347,7 @@ PYBIND11_MODULE(pydh3, m) {
                 << ", predictive=" << conf.predictive << ")";
              return ss.str();
            })
-      .def_property_readonly_static(  //
+      .def_property_readonly_static( //
           "PCFRP",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,
@@ -350,7 +356,7 @@ PYBIND11_MODULE(pydh3, m) {
                            .rmplus = true,
                            .predictive = true};
           })
-      .def_property_readonly_static(  //
+      .def_property_readonly_static( //
           "DCFR",
           [](py::handle) -> CfrConf {
             return CfrConf{.avg = AveragingStrategy::QUADRATIC,

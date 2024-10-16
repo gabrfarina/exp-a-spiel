@@ -105,7 +105,7 @@ bool Treeplex::is_valid_vector(ConstRealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     for (uint32_t j = 0; j < 9; ++j) {
       if (!(a & (1 << j))) {
-        if (buf[i * 9 + j] != 0)
+        if (buf[i * 9 + j] != 0 || !std::isfinite(buf[i * 9 + j]))
           return false;
       }
     }
@@ -122,7 +122,8 @@ bool Treeplex::is_valid_strategy(ConstRealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     Real sum = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1)
+      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1 ||
+          !std::isfinite(buf[i * 9 + j]))
         return false;
 
       if (a & (1 << j)) {
@@ -488,11 +489,11 @@ Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
 }
 
 template <typename T>
-void Traverser<T>::compute_openspiel_infostate(const uint8_t p, int64_t i, std::span<bool> buf) const {
-    uint64_t info = treeplex[p]->infoset_keys[i];
-    T::compute_openspiel_infostate(p, info, buf);
+void Traverser<T>::compute_openspiel_infostate(const uint8_t p, int64_t i,
+                                               std::span<bool> buf) const {
+  uint64_t info = treeplex[p]->infoset_keys[i];
+  T::compute_openspiel_infostate(p, info, buf);
 }
-
 
 template <typename T>
 void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
