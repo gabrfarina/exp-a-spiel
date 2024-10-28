@@ -40,11 +40,8 @@ pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
 mypy = ">=1.11.2,<2"
-<<<<<<< HEAD
-sysroot_linux-64 = { version = ">=2.28,<=2.31", channel = "conda-forge" }
-=======
 open-spiel = "*"
->>>>>>> 9788fdd90134842d0b537e14227b92b95b41291d
+sysroot_linux-64 = { version = ">=2.28,<=2.31", channel = "conda-forge" }
 
 [tool.pixi.pypi-dependencies]
 dh3 = { path = "." } # editable = true 
