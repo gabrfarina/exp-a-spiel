@@ -8,6 +8,7 @@
 #include <omp.h>
 
 #include "averager.h"
+#include "base_state.h"
 #include "dh_state.h"
 #include "log.h"
 #include "pttt_state.h"
@@ -104,7 +105,7 @@ bool Treeplex::is_valid_vector(ConstRealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     for (uint32_t j = 0; j < 9; ++j) {
       if (!(a & (1 << j))) {
-        if (buf[i * 9 + j] != 0)
+        if (buf[i * 9 + j] != 0 || !std::isfinite(buf[i * 9 + j]))
           return false;
       }
     }
@@ -121,7 +122,8 @@ bool Treeplex::is_valid_strategy(ConstRealBuf buf) const {
     const uint32_t a = it.second.legal_actions;
     Real sum = 0;
     for (uint32_t j = 0; j < 9; ++j) {
-      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1)
+      if (buf[i * 9 + j] < 0 || buf[i * 9 + j] > 1 ||
+          !std::isfinite(buf[i * 9 + j]))
         return false;
 
       if (a & (1 << j)) {
@@ -484,6 +486,27 @@ Traverser<T>::ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies) {
   INFO("... all done. (ev0 = %.6f, expl = %.6f, %.6f)", ev0, out.expl[0],
        out.expl[1]);
   return out;
+}
+
+template <typename T>
+void Traverser<T>::compute_openspiel_infostate(const uint8_t p, int64_t i,
+                                               std::span<bool> buf) const {
+  uint64_t info = treeplex[p]->infoset_keys[i];
+  T::compute_openspiel_infostate(p, info, buf);
+}
+
+template <typename T>
+void Traverser<T>::compute_openspiel_infostates(const uint8_t p,
+                                                std::span<bool> buf) const {
+  CHECK(p == 0 || p == 1, "player must be 0 or 1 (found %u)", p);
+  const uint32_t ncols = T::OPENSPIEL_INFOSTATE_SIZE;
+  const uint32_t nrows = treeplex[p]->num_infosets();
+  std::fill(buf.begin(), buf.end(), false);
+
+#pragma omp parallel for
+  for (uint32_t i = 0; i < nrows; ++i) {
+    compute_openspiel_infostate(p, i, buf.subspan(i * ncols, ncols));
+  }
 }
 
 template <typename T>

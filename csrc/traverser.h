@@ -57,6 +57,8 @@ template <typename T> struct Traverser {
   void compute_gradients(const PerPlayer<ConstRealBuf> strategies);
   EvExpl ev_and_exploitability(const PerPlayer<ConstRealBuf> strategies);
   Averager new_averager(const uint8_t player, const AveragingStrategy avg);
+  void compute_openspiel_infostate(const uint8_t player, int64_t i, std::span<bool> buf) const;
+  void compute_openspiel_infostates(const uint8_t player, std::span<bool> buf) const;
 
 private:
   PerPlayer<std::array<std::valarray<Real>, 9>> bufs_;

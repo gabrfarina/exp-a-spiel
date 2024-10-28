@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <span>
+#include <stdexcept>
 #include <string>
 
 const uint8_t TIE = 0xee;
@@ -55,11 +57,12 @@ template <bool abrupt> struct BaseState {
   // get the infoset for the *current player*
   // infoset is made up of 64 bits, containing all of the player's t_ moves
   // each move is encoded over 5 bits as follows:
-  // - the first (rightmost) bit is 1 if the move was successful, or 0 if the
+  // - the first bit (`move & 1`) is 1 if the move was successful, or 0 if the
   // opponent had played there before
-  // - the next 4 bits contain the move, from 1 to 9
-  // the latest move is encoded in the rightmost 5 bits
-  // in total the 5*t_ rightmost bits are used, the others are left to 0
+  // - the next 4 bits contain the move, from 1 to 9 (ie. `((move >> 1) &
+  // 0b1111) - 1` contains the cell between 0 and 8) the latest move is encoded
+  // in the rightmost 5 bits in total the 5*t_ rightmost bits are used, the
+  // others are left to 0
   uint64_t get_infoset() const {
     uint64_t info = 0;
     uint8_t t_ = t[p];
@@ -69,9 +72,32 @@ template <bool abrupt> struct BaseState {
       assert(td <= 9);
       info |= uint64_t(((i + 1) << 1) + (to & 1)) << (5 * td);
     }
+    // if a cell hasn't been played, td = t_ and this is stored in the infoset
+    // -> there have only been t_ moves played, so set all bits past the
+    // (5*t_)'s bit to 0
     info &= (uint64_t(1) << (5 * t_)) - 1;
     return info;
   }
+
+  // void compute_openspiel_infostate(bool *buf) const {
+  //   uint64_t info = get_infoset();
+  //   const uint32_t nfeatures = 27 + 81;
+  //   memset(buf, 0, nfeatures * sizeof(bool));
+
+  //   // Mark first 9 cells as empty
+  //   memset(buf, 1, 9 * sizeof(bool));
+  //   for (uint32_t j = 0; info; info >>= 5, ++j) {
+  //     const uint8_t cell = ((info >> 1) & 0b1111) - 1;
+  //     const bool placed = info & 1;
+
+  //     buf[cell] = false;
+  //     buf[9 + cell] = ((p + placed) % 2 == 0);  // p1 moves
+  //     buf[18 + cell] = ((p + placed) % 2 == 1); // p0 moves
+  //     // we are reading moves from latest to oldest, and we want to store moves
+  //     // from oldest to latest
+  //     buf[27 + 9 * (t[p] - 1 - j) + cell] = true;
+  //   }
+  // }
 };
 
 // get total number of moves played so far

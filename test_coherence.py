@@ -2,7 +2,16 @@ import dh3
 import pyspiel
 import numpy as np
 import time
+import random 
 
+random.seed(123)
+np.random.seed(123)
+def to_bool(x):
+  if isinstance(x, list):
+    x = np.array(x)
+  if x.dtype == bool:
+    return x
+  return x != 0
 
 # games to test (compare openspiel implementation with dh3 implementation)
 GAMES = {
@@ -26,7 +35,7 @@ GAMES = {
 
 # number of random runs for each game
 N = 10_000_000
-
+    
 actions_history = np.zeros(100, dtype=np.int32) - 1  # save actions for debugging
 for game_str, (os_game, dh3_state_fn) in GAMES.items():
     if os_game is None or dh3_state_fn is None:
@@ -60,6 +69,11 @@ for game_str, (os_game, dh3_state_fn) in GAMES.items():
                 oh_legal_actions = os_state.legal_actions()
                 dh3_legal_actions = [i for (i, x) in enumerate(dh3_state.action_mask()) if x]
                 assert oh_legal_actions == dh3_legal_actions, 'legal_actions'
+
+                os_ist = to_bool(os_state.information_state_tensor())
+                dh_ist = to_bool(dh3_state.compute_openspiel_infostate())
+                assert (os_ist == dh_ist).all(), 'information_state_tensor'
+                
                 # sample random action
                 action = np.random.choice(oh_legal_actions)
                 actions_history[t] = action

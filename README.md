@@ -30,6 +30,15 @@ To re-build the environment (eg. after having modified the C++ code), run
 ```
 then follow the steps above to re-create and activate the environment.
 
+Alternatively, you can install the environment with 
+```
+> $ pip install -e . -Ceditable.rebuild=True -Cbuild-dir=pypy_build
+```
+where `pypy_build` is any folder and the project will recompile if needed on import.
+Note that this is terrible if the there are multiple processes using an NFS and that 
+pixi has a tendency to reinstall the project w/o these additional options when ran with
+the `install` command.
+
 ## Python interface
 
 ### Game state
