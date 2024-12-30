@@ -229,9 +229,20 @@ void register_types(py::module &m, const std::string &prefix) {
                  std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
                  buf.data());
            })
+      .def("bh_to_sf",
+           [](const Traverser<T> &traverser, const uint8_t p,
+              const NdArray &strategy) -> NdArray {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %u)", p);
+             NdArray out = strategy;
+             traverser.treeplex[p]->bh_to_sf(to_mut_span(out));
+             return out;
+           })
       .def("is_valid_strategy",
            [](const Traverser<T> &traverser, const uint8_t p,
-              const NdArray &strategy) {
+              const NdArray &strategy) -> bool {
+             CHECK(p == 0 || p == 1,
+                   "Invalid player (expected 0 or 1; found %u)", p);
              return traverser.treeplex[p]->is_valid_strategy(
                  to_const_span(strategy));
            })
@@ -277,9 +288,7 @@ void register_types(py::module &m, const std::string &prefix) {
   m.def(
       "CfrSolver",
       [](const std::shared_ptr<Traverser<T>> t,
-         const CfrConf &conf) -> CfrSolver<T> {
-        return {t, conf};
-      },
+         const CfrConf &conf) -> CfrSolver<T> { return {t, conf}; },
       py::arg("traverser"), py::arg("cfr_conf"));
 }
 
