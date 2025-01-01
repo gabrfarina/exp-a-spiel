@@ -23,6 +23,10 @@ classifiers = [
 dependencies = [
   "numpy<2",
 ]
+
+[tool.mypy]
+plugins = ["numpy.typing.mypy_plugin"]
+
 [tool.pixi.project]
 channels = ["https://repo.prefix.dev/rando-forge", "conda-forge", "nodefaults"]
 platforms = ["linux-64"]
