@@ -17,6 +17,7 @@
 #include "pttt_state.h"
 #include "traverser.h"
 #include "utils.h"
+#include "vec_env.h"
 
 namespace py = pybind11;
 using NdArray = py::array_t<Real, py::array::c_style>;
@@ -126,6 +127,14 @@ void register_types(py::module &m, const std::string &prefix) {
       .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
         return T::OPENSPIEL_INFOSTATE_SIZE;
       });
+
+  py::class_<VecEnv<T>>(
+      m, (prefix + "VecEnv").c_str())
+      .def(py::init<int>())
+      .def("reset", &VecEnv<T>::reset)
+      .def("step", &VecEnv<T>::step)
+      .def("close", &VecEnv<T>::close);
+
 
   py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(
       m, (prefix + "Traverser").c_str())
