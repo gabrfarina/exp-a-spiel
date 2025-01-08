@@ -75,7 +75,7 @@ void register_types(py::module &m, const std::string &prefix) {
              } else {
                return std::nullopt;
              }
-           })
+           }, "Returns the current player, or None if the game is over")
       .def(
           "next",
           [](T &s, const uint8_t cell) -> void {
@@ -86,8 +86,8 @@ void register_types(py::module &m, const std::string &prefix) {
             CHECK(a & (1 << cell), "The action is not legal");
             s.next(cell);
           },
-          py::arg("cell"))
-      .def("is_terminal", &T::is_terminal)
+          py::arg("cell"), "Play the given cell")
+      .def("is_terminal", &T::is_terminal, "Returns True if the game is over")
       .def("winner",
            [](const T &s) -> std::optional<uint8_t> {
              CHECK(
@@ -100,7 +100,7 @@ void register_types(py::module &m, const std::string &prefix) {
                assert(w == TIE);
                return std::nullopt;
              }
-           })
+           }, "Returns the winner (0, 1, or None if it's a tie)")
       .def("action_mask",
            [](const T &s) -> std::array<bool, 9> {
              std::array<bool, 9> mask;
@@ -109,11 +109,11 @@ void register_types(py::module &m, const std::string &prefix) {
                mask[i] = a & 1;
              }
              return mask;
-           })
+           }, "Returns a mask of legal actions")
       .def("infoset_desc",
            [](const T &s) -> std::string {
              return infoset_desc(s.get_infoset());
-           })
+           }, "Returns a description of the current infoset")
       .def("compute_openspiel_infostate",
            [](const T &s) -> BoolNdArray {
              std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE> buf;
@@ -121,12 +121,12 @@ void register_types(py::module &m, const std::string &prefix) {
              return BoolNdArray(
                  std::array<py::ssize_t, 1>{T::OPENSPIEL_INFOSTATE_SIZE},
                  buf.data());
-           })
+           }, "Returns the OpenSpiel infoset")
       .def("__str__", &T::to_string)
       .def("__repr__", &T::to_string)
       .def_property_readonly_static("OPENSPIEL_INFOSTATE_SIZE", [](py::object) {
         return T::OPENSPIEL_INFOSTATE_SIZE;
-      });
+      }, "The size of the OpenSpiel infoset");
 
     py::class_<VecEnv<T>>(
             m, (prefix + "VecEnv").c_str()
@@ -229,7 +229,7 @@ void register_types(py::module &m, const std::string &prefix) {
              }
 
              return std::make_tuple(out[0], out[1]);
-           })
+           }, "Constructs uniform (behavioral) strategies for both players")
       .def(
           "compute_openspiel_infostates",
           [](const Traverser<T> &traverser, const uint8_t p) -> BoolNdArray {
@@ -259,18 +259,19 @@ void register_types(py::module &m, const std::string &prefix) {
               const NdArray &strategy) {
              return traverser.treeplex[p]->is_valid_strategy(
                  to_const_span(strategy));
-           })
+           }, "Checks if the given strategy is valid, (has the right shape, is nonnegative and sums to 1)")
       .def_property_readonly("NUM_INFOS_PL0",
                              [](const Traverser<T> &traverser) {
                                return traverser.treeplex[0]->num_infosets();
-                             })
+                             }, "Number of infosets for player 0")
       .def_property_readonly("NUM_INFOS_PL1",
                              [](const Traverser<T> &traverser) {
                                return traverser.treeplex[1]->num_infosets();
-                             })
+                             }, "Number of infosets for player 1")
       .def_property_readonly_static(
           "OPENSPIEL_INFOSTATE_SIZE",
-          [](py::object) { return T::OPENSPIEL_INFOSTATE_SIZE; })
+          [](py::object) { return T::OPENSPIEL_INFOSTATE_SIZE; }, 
+          "The size of the OpenSpiel infoset")
       .def(
           "parent_index_and_action",
           [](const Traverser<T> &traverser, const uint8_t p,
@@ -286,18 +287,18 @@ void register_types(py::module &m, const std::string &prefix) {
           },
           py::arg("player"), py::arg("row"))
       .def("new_averager", &Traverser<T>::new_averager, py::arg("player"),
-           py::arg("avg_strategy"));
+           py::arg("avg_strategy"), "Returns a new Averager object");
 
   py::class_<CfrSolver<T>>(m, (prefix + "CfrSolver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t, CfrConf conf)
                         -> CfrSolver<T> { return CfrSolver<T>(t, conf); }),
            py::arg("traverser"), py::arg("cfr_conf"))
-      .def("step", &CfrSolver<T>::step)
+      .def("step", &CfrSolver<T>::step, "Performs a single CFR step")
       .def("avg_bh",
            [](const CfrSolver<T> &solver) -> std::tuple<NdArray, NdArray> {
              return std::make_tuple(to_ndarray(solver.get_avg_bh(0)),
                                     to_ndarray(solver.get_avg_bh(1)));
-           });
+           }, "Returns the average behavioral strategies");
 
   m.def(
       "CfrSolver",
@@ -305,22 +306,22 @@ void register_types(py::module &m, const std::string &prefix) {
          const CfrConf &conf) -> CfrSolver<T> {
         return {t, conf};
       },
-      py::arg("traverser"), py::arg("cfr_conf"));
+      py::arg("traverser"), py::arg("cfr_conf"), "Constructs a new CfrSolver");
 }
 
 PYBIND11_MODULE(pydh3, m) {
   py::class_<EvExplPy>(m, "EvExpl")
-      .def_readonly("ev0", &EvExplPy::ev0)
-      .def_readonly("expl", &EvExplPy::expl)
-      .def_readonly("gradient", &EvExplPy::gradient)
-      .def_readonly("best_response", &EvExplPy::best_response)
+      .def_readonly("ev0", &EvExplPy::ev0, "EV0")
+      .def_readonly("expl", &EvExplPy::expl, "Exploitabilities")
+      .def_readonly("gradient", &EvExplPy::gradient, "Gradients")
+      .def_readonly("best_response", &EvExplPy::best_response, "Best response policies")
       .def("__repr__", [](const EvExplPy &ev) {
         std::ostringstream ss;
         ss << std::fixed << std::showpoint << std::setprecision(8)
            << "EvExpl(ev0=" << ev.ev0 << ", expl=[" << std::get<0>(ev.expl)
            << ", " << std::get<1>(ev.expl) << "])";
         return ss.str();
-      });
+      }).doc() = "Utility class for holding EV and exploitability results";
 
   py::class_<Averager>(m, "Averager")
       .def(
@@ -329,18 +330,19 @@ PYBIND11_MODULE(pydh3, m) {
              const std::optional<Real> weight) -> void {
             avg.push(to_const_span(strat), weight);
           },
-          py::arg("strategy"), py::arg("weight") = std::nullopt)
+          py::arg("strategy"), py::arg("weight") = std::nullopt, "Pushes a strategy, use weight argument for custom averaging")
       .def("running_avg",
            [](const Averager &a) { return to_ndarray(a.running_avg()); })
-      .def("clear", &Averager::clear);
+      .def("clear", &Averager::clear, "Clears the running average")
+      .doc() = "Utility class for averaging strategies";
 
   py::enum_<AveragingStrategy>(m, "AveragingStrategy")
-      .value("UNIFORM", AveragingStrategy::UNIFORM)
-      .value("LINEAR", AveragingStrategy::LINEAR)
-      .value("QUADRATIC", AveragingStrategy::QUADRATIC)
-      .value("EXPERIMENTAL", AveragingStrategy::EXPERIMENTAL)
-      .value("LAST", AveragingStrategy::LAST)
-      .value("CUSTOM", AveragingStrategy::CUSTOM);
+      .value("UNIFORM", AveragingStrategy::UNIFORM, "All strategies have the same weight.")
+      .value("LINEAR", AveragingStrategy::LINEAR, "Strategy t has weight proportional to t")
+      .value("QUADRATIC", AveragingStrategy::QUADRATIC, "Strategy t has weight proportional to $t^2$")
+      .value("EXPERIMENTAL", AveragingStrategy::EXPERIMENTAL, "Experimental averating")
+      .value("LAST", AveragingStrategy::LAST, "The last strategy has weight 1")
+      .value("CUSTOM", AveragingStrategy::CUSTOM, "The user will provide the weights via the `weigh` argument");
 
   py::class_<CfrConf>(m, "CfrConf")
       .def(py::init([](AveragingStrategy avg, bool alternation, bool dcfr,
@@ -403,7 +405,19 @@ PYBIND11_MODULE(pydh3, m) {
                 .rmplus = t[3].cast<bool>(),
                 .predictive = t[4].cast<bool>(),
             };
-          }));
+          }))
+      .doc() = R"SDF(
+        Configuration for CFR
+        - avg: Averaging strategy,
+        - alternation: Use alternation,
+        - dcfr: Use discounted CFR,
+        - predictive: Use predictive CFR
+        - rmplus: Use RM+, can be mixed with DCFR, 
+
+        The following configurations are available:
+        - PCFRP: Predictive CFR+,
+        - DCFR: Discounted CFR,
+)SDF";
 
   register_types<DhState<false>>(m, "Dh");
   register_types<DhState<true>>(m, "AbruptDh");
