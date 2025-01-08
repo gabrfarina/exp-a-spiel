@@ -128,12 +128,28 @@ void register_types(py::module &m, const std::string &prefix) {
         return T::OPENSPIEL_INFOSTATE_SIZE;
       });
 
-  py::class_<VecEnv<T>>(
-      m, (prefix + "VecEnv").c_str())
-      .def(py::init<int>())
-      .def("reset", &VecEnv<T>::reset)
-      .def("step", &VecEnv<T>::step)
-      .def("close", &VecEnv<T>::close);
+    py::class_<VecEnv<T>>(
+            m, (prefix + "VecEnv").c_str()
+    )
+            .def(py::init<int>())
+            .def("reset", [](VecEnv<T> &s, [[maybe_unused]] int seed = 114514) {
+                return s.reset();
+            })
+            .def("step", &VecEnv<T>::step)
+            .def("close", &VecEnv<T>::close)
+            .def_property_readonly("obs_shape", [](const VecEnv<T> & /*env*/) {
+                return std::vector<int>{T::OPENSPIEL_INFOSTATE_SIZE};
+            })
+            .def_property_readonly("num_envs", [](const VecEnv<T> & envs) {
+                return envs.num_envs;
+            })
+            .def_property_readonly("num_actions", [](const VecEnv<T> & /*env*/) {
+                return 9;
+            })
+            .def_property_readonly("num_players", [](const VecEnv<T> & /*env*/) {
+                return 2;
+            });
+
 
 
   py::class_<Traverser<T>, std::shared_ptr<Traverser<T>>>(

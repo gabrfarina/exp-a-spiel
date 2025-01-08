@@ -6,7 +6,6 @@
 template <typename T>
 class VecEnv {
 protected:
-    int num_envs;
     std::vector<T> envs;
     std::vector<std::array<std::array<bool, T::OPENSPIEL_INFOSTATE_SIZE>, 2>> tensor;
 
@@ -35,6 +34,7 @@ protected:
     }
 
 public:
+    int num_envs;
     VecEnv(int num_envs) : num_envs(num_envs) {
         envs.resize(num_envs);
         tensor.resize(num_envs);
