@@ -56,8 +56,7 @@ public:
         rewards.resize(num_envs);
         for (int i = 0; i < num_envs; i ++) {
 
-            CHECK(actions[i] < 9, "Invalid cell (must be in range [0..8]; found %d)",
-                    cell);
+            CHECK(actions[i] < 9, "Invalid cell (must be in range [0..8]; found %d)", actions[i]);
             CHECK(!envs[i].is_terminal(), "Game is over");
             const uint32_t a = envs[i].available_actions();
             CHECK(a & (1 << actions[i]), "The action is not legal");
