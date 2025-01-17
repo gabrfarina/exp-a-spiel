@@ -261,7 +261,13 @@ void register_types(py::module &m, const std::string &prefix) {
           },
           py::arg("player"), py::arg("row"))
       .def("new_averager", &Traverser<T>::new_averager, py::arg("player"),
-           py::arg("avg_strategy"));
+           py::arg("avg_strategy"))
+      .def("cfr_solver",
+           [](const std::shared_ptr<Traverser<T>> traverser, const CfrConf &conf) {
+             return CfrSolver<T>(traverser, conf);
+           },
+           py::arg("cfr_conf"))
+        ;
 
   py::class_<CfrSolver<T>>(m, (prefix + "CfrSolver").c_str())
       .def(py::init([](const std::shared_ptr<Traverser<T>> t, CfrConf conf)
