@@ -12,7 +12,7 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(Boost CONFIG REQUIRED)
 
-set(CMAKE_CXX_FLAGS "-fopenmp -Wall -Wextra -Wfatal-errors -march=native -fPIC")
+set(CMAKE_CXX_FLAGS "-fopenmp -Wall -Wextra -Wfatal-errors -mcpu=native -fPIC")
 cmake_policy(SET CMP0167 NEW)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

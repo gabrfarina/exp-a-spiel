@@ -25,14 +25,14 @@ dependencies = [
 ]
 [tool.pixi.project]
 channels = ["https://repo.prefix.dev/rando-forge", "conda-forge", "nodefaults"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64"]
 
 [tool.pixi.dependencies]
 boost = ">=1.85"
 boost-cpp = ">=1.85"
 cmake = ">=3.29"
-gcc = "<=13"                  # https://github.com/pybind/pybind11/issues/5206
-gxx = "<=13"                  # https://github.com/pybind/pybind11/issues/5206
+clang = ">=16"                  # https://github.com/pybind/pybind11/issues/5206
+clangxx = ">=16"                  # https://github.com/pybind/pybind11/issues/5206
 ninja = "*"
 numpy = "<2"
 pip = "*"
@@ -40,8 +40,6 @@ pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
 mypy = ">=1.11.2,<2"
-open-spiel = "*"
-sysroot_linux-64 = { version = ">=2.28,<=2.31", channel = "conda-forge" }
 
 [tool.pixi.pypi-dependencies]
 dh3 = { path = "." } # editable = true 
@@ -49,7 +47,6 @@ dh3 = { path = "." } # editable = true
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
 pytest = "*"
-gdb = ">=15.1"
 pybind11-stubgen = "*"
 submitit = "*"
 
