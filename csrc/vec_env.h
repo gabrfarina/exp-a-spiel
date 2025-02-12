@@ -71,8 +71,8 @@ public:
                     rewards[i][1 - w] = -1;
                 } else {
                     assert(w == TIE);
-                    rewards[i][w] = 0;
-                    rewards[i][1 - w] = 0;
+                    rewards[i][0] = 0;
+                    rewards[i][1] = 0;
                 }
                 envs[i] = T();
                 for (int j = 0; j < 2; j ++)
