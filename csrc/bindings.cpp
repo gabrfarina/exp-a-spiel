@@ -289,7 +289,7 @@ void register_types(py::module &m, const std::string &prefix) {
       py::arg("traverser"), py::arg("cfr_conf"));
 }
 
-PYBIND11_MODULE(pydh3, m) {
+PYBIND11_MODULE(pyeas, m) {
   py::class_<EvExplPy>(m, "EvExpl")
       .def_readonly("ev0", &EvExplPy::ev0)
       .def_readonly("expl", &EvExplPy::expl)

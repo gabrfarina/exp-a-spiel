@@ -1,5 +1,5 @@
 from __future__ import annotations
-import dh3
+import eas
 import numpy
 import pybind11_stubgen.typing_ext
 import typing
@@ -180,7 +180,7 @@ class CfrConf:
     rmplus: bool
     def __getstate__(self) -> tuple:
         ...
-    def __init__(self, *, avg: AveragingStrategy = dh3.AveragingStrategy.QUADRATIC, alternation: bool = True, dcfr: bool = True, rmplus: bool = False, predictive: bool = False) -> None:
+    def __init__(self, *, avg: AveragingStrategy = eas.AveragingStrategy.QUADRATIC, alternation: bool = True, dcfr: bool = True, rmplus: bool = False, predictive: bool = False) -> None:
         ...
     def __repr__(self) -> str:
         ...

@@ -17,7 +17,7 @@
 #include "traverser.h"
 
 int main() {
-  INFO("starting dh3 (num threads: %d)", omp_get_max_threads());
+  INFO("starting eas (num threads: %d)", omp_get_max_threads());
 #ifdef DEBUG
   INFO("DEBUG is defined");
 #endif

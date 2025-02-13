@@ -1,4 +1,4 @@
-import dh3
+import eas
 import time
 import logging
 import itertools
@@ -16,7 +16,7 @@ def train(game, N=1000, cfr_config=None):
     time.sleep(1)
     print(flush=True)
     t = game()
-    cfr = dh3.CfrSolver(t, cfr_config)
+    cfr = eas.CfrSolver(t, cfr_config)
     logger.info("Starting CFR")
 
     x2, y2 = cfr.avg_bh()
@@ -50,15 +50,15 @@ if __name__ == "__main__":
     with executor.batch():
         for game, cfr in itertools.product(
             [
-                dh3.CornerDhTraverser,
-                dh3.DhTraverser,
-                dh3.AbruptDhTraverser,
-                dh3.PtttTraverser,
-                dh3.AbruptPtttTraverser,
+                eas.CornerDhTraverser,
+                eas.DhTraverser,
+                eas.AbruptDhTraverser,
+                eas.PtttTraverser,
+                eas.AbruptPtttTraverser,
             ],
             [
-                dh3.CfrConf.PCFRP,
-                dh3.CfrConf.DCFR,
+                eas.CfrConf.PCFRP,
+                eas.CfrConf.DCFR,
             ]
         ):
             job = executor.submit(

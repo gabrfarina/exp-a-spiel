@@ -4,31 +4,29 @@ build-backend = "scikit_build_core.build"
 
 
 [project]
-name = "dh3"
+name = "eas"
 version = "0.0.1"
-description = "dh3"
+description = "exp-a-spiel"
 readme = "README.md"
 authors = [{ name = "Gabriele Farina", email = "gfarina@mit.edu" }]
 requires-python = ">=3.7"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+
 ]
-dependencies = [
-  "numpy<2",
-]
+keywords = ["exploitability", "openspiel", "imperfect-information", "game"]
+
 [tool.pixi.project]
 channels = ["https://repo.prefix.dev/rando-forge", "conda-forge", "nodefaults"]
 platforms = ["linux-64"]
 
 [tool.pixi.dependencies]
-boost = ">=1.85"
 boost-cpp = ">=1.85"
 cmake = ">=3.29"
 gcc = "<=13"                  # https://github.com/pybind/pybind11/issues/5206
@@ -39,29 +37,27 @@ pip = "*"
 pybind11 = "*"
 python = ">3.10"
 scikit-build-core = ">=0.3.3"
-mypy = ">=1.11.2,<2"
 open-spiel = "*"
 sysroot_linux-64 = { version = ">=2.28,<=2.31", channel = "conda-forge" }
-
+wheel = "*"
+python-build = "*"
+setuptools = "*"
 [tool.pixi.pypi-dependencies]
-dh3 = { path = "." } # editable = true 
+eas = { path = "." } # editable = true 
 
 [tool.pixi.feature.dev.dependencies]
-ipykernel = "*"
 pytest = "*"
-gdb = ">=15.1"
 pybind11-stubgen = "*"
-submitit = "*"
 
 [tool.pixi.environments]
 default = { features = ["dev"] }
 
 [tool.scikit-build]
 # build-dir = "./pypy_build"
-cmake.targets = ["pydh3"]
-cmake.verbose = true
+build.targets = ["pyeas"]
+build.verbose = true
 # editable.rebuild = true
 logging.level = "INFO"
 wheel.expand-macos-universal-tags = true
-wheel.license-files = []
-wheel.packages = ["csrc/dh3"]
+wheel.license-files = ["LICENSE"]
+wheel.packages = ["src/eas"]
