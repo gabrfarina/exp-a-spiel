@@ -1,18 +1,19 @@
 # exp-a-spiel
 
 This package (C++ with python binding) implement fast gradient, exploitability and tabular solvers for
-- dark Hex 3,
-- abrupt Dark Hex,
-- pantom tic-tac-toe, and
-- abrupt phatom tic-tac-toe.
+- Dark Hex 3,
+- abrupt Dark Hex 3,
+- phantom tic-tac-toe, and
+- abrupt phantom tic-tac-toe.
+
+A demonstration of the games is available at https://nathanlichtle.com/research/2p0s.
 
 This package is compatible with [OpenSpiel](https://github.com/google-deepmind/open_spiel).
 
+This package was part of the work for [Reevaluating Policy Gradient Methods for Imperfect-Information Games](https://arxiv.org/abs/2502.08938).
 
-This package was part of TODO
 
-
-# Hight level concepts:
+# High level concepts:
 
 ## Games
 
