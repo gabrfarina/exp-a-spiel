@@ -81,7 +81,7 @@ best_reponse: tuple[np.ndarray, np.ndarray]`
 ```
 the best response values
 ```python
-expl: tuple[float ,float]
+expl: tuple[float, float]
 ```
 head to head expected value of player 0. the head-to-head value of player 1 is just the inverse.
 ```python
@@ -202,7 +202,7 @@ The python interface is a clone of the C++ interface except that C++ uses valarr
 
 
 # An example
-```
+```python
 import eas
  # Constructs a new initial state
 s = eas.DhState()
@@ -319,7 +319,7 @@ for (regular, non-abrupt) DarkHex3.
 
 Each row of the tensor contains the strategy for each of the possible infosets of the game. It is mandatory that the probability of illegal actions be `0.0`.
 
-```
+```python
 import eas
 
 t = eas.DhTraverser()  # This takes roughly 55s on my machine.
@@ -353,31 +353,31 @@ The correspondence between rows and information set can be recovered by using th
 This project is packaged with [pixi](https://prefix.dev/), a conda replacement.
 
 To create the pixi environment, you can do
-```
-> $ pixi install
+```sh
+$ pixi install
 ✔ The default environment has been installed.
 ```
 
 To activate the environment, you can then do
-```
-> $ pixi shell
+```sh
+$ pixi shell
 ```
 
 To make sure everything works well you can do
-```
-> $ python
+```sh
+$ python
 >>> import eas
 ```
 
 To re-build the environment (eg. after having modified the C++ code), run
-```
-> $ pixi clean
+```sh
+$ pixi clean
 ```
 then follow the steps above to re-create and activate the environment.
 
 Alternatively, you can install the environment with 
-```
-> $ pip install -e . -Ceditable.rebuild=True -Cbuild-dir=pypy_build
+```sh
+$ pip install -e . -Ceditable.rebuild=True -Cbuild-dir=pypy_build
 ```
 where `pypy_build` is any folder and the project will recompile if needed on import.
 Note that this is terrible if the there are multiple processes using an NFS and that 
