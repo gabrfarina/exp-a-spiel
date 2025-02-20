@@ -1,6 +1,6 @@
 # exp-a-spiel
 
-This package (C++ with python binding) implement fast gradient, exploitability and tabular solvers for
+This package (C++ with Python binding) implements fast gradient, exploitability and tabular solvers for
 - Dark Hex 3,
 - abrupt Dark Hex 3,
 - phantom tic-tac-toe, and
@@ -32,7 +32,7 @@ Return a tensor of the infostates of `player` where each row is one infostate.
 ```python
 def compute_openspiel_infostates(self, player: int) -> np.ndarray
 ```
-Creats a uniform strategy for both players.
+Creates a uniform strategy for both players.
 ```python
 def construct_uniform_strategies(self) -> tuple[np.ndarray, np.ndarray]
 ```
@@ -61,9 +61,9 @@ Returns a new cfr solver. See [CFR](#cfr)
 def cfr_solver(self, conf: CfrConf)
 ```
 
-Furtheremore, a traverser defines the following constant attributes:
+Furthermore, a traverser defines the following constant attributes:
 
-Number of infostates for each of the player. The strategy arrays are of this size.
+Number of infostates for each player. The strategy arrays are of this size.
 ```python
 NUM_INFOS_PL0: int
 NUM_INFOS_PL1: int
@@ -73,9 +73,9 @@ Note that all games have 9 actions and that strategies are arrays of size `(NUM_
 
 ## `EvExpl`
 
-This helper class defines the following attribtues:
+This helper class defines the following attributes:
 
-the best reponse strategies
+the best response strategies
 ```python
 best_reponse: tuple[np.ndarray, np.ndarray]`
 ```
@@ -95,12 +95,12 @@ gradient: tuple[np.ndarray, np.ndarray]`
 
 ## `Averager`
 
-In general, sound algorithms for 2p0s games require calculating the [sequence form average](#sequence-form-strategies) of the behavioral policies. The averager converts the behavioral policy to a sequene form policy and take the average. The contribution of iterate $t$ to the final policy is detemined by the `AveragingStrategy`. The final result is proportional to
+In general, sound algorithms for 2p0s games require calculating the [sequence form average](#sequence-form-strategies) of the behavioral policies. The averager converts the behavioral policy to a sequence form policy and takes the average. The contribution of iterate $t$ to the final policy is determined by the `AveragingStrategy`. The final result is proportional to
 - $1$ for `UNIFORM`,
 - $t$ for `LINEAR`,
 - $t^2$ for `QUADRATIC`, and
 - ?? for `EXPERIMENTAL`.
-Furthermore, the `AveragingStrategy` can be last to always select the last iteration or `CUSTOM` if the user provides the weights.
+Furthermore, the `AveragingStrategy` can be set to always select the last iteration or `CUSTOM` if the user provides the weights.
 
 The `Averager` defines two methods:
 ```python
@@ -133,14 +133,14 @@ def __init__(self, avg: AveragingStrategy, alternation: bool, dcfr: bool, rmplus
 - `avg` is the strategy used for averaging, [see `Averager`](#averager)
 - `alternation` make CFR update only one policy per gradient
 - `dcfr` will discount the regrets, the default parameter of $\alpha=1.5$ and $\beta=0$ are used. See [Solving Imperfect-Information Games via Discounted Regret Minimization](https://arxiv.org/abs/1809.04040)
-- `rmplus` will set the regrets to zero if they are negative. If used in conjuncation with `dcfr`, it will be applied after discounting.
+- `rmplus` will set the regrets to zero if they are negative. If used in conjunction with `dcfr`, it will be applied after discounting.
 - `predictive` will use optimistic regret minimizers. See [Stable-Predictive Optimistic Counterfactual Regret Minimization](https://arxiv.org/abs/1902.04982).
 
 We provide the following static variants:
 - `PCFRP`: predictive cfr+, and
 - `DCFR`: discounted cfr.
 
-The CFR object has tow methods
+The CFR object has two methods
 ```python
 def step(self) -> None: ...
 def avg_bh(self) -> tuple[np.ndarray, np.ndarray]: ...
